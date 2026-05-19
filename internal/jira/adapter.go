@@ -282,6 +282,19 @@ func plainDescriptionFromRaw(raw json.RawMessage) string {
 	return ""
 }
 
+// DescriptionPresentButUnparsed is true when Jira sent a non-null description that is not
+// a JSON string (e.g. ADF object). Empty string descriptions are not "unparsed".
+func DescriptionPresentButUnparsed(raw json.RawMessage) bool {
+	if len(raw) == 0 || string(raw) == "null" {
+		return false
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return false
+	}
+	return true
+}
+
 // JSON types for unmarshaling (kept internal)
 type jsonExport struct {
 	Issues []jsonIssue `json:"issues"`

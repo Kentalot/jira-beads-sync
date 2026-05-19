@@ -198,7 +198,7 @@ func runQuickstart(urlOrKey string) error {
 	return nil
 }
 
-func runSync(issueKeys []string) error {
+func runSync(rawArgs []string) error {
 	fmt.Println("jira-beads-sync sync")
 	fmt.Println("====================")
 	fmt.Println()
@@ -216,17 +216,39 @@ func runSync(issueKeys []string) error {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
+	issueKeys, gitCommitFlag := parseSyncArgs(rawArgs)
+
 	issuesPath := beads.IssuesJSONLPath(outputDir)
-	issues, err := beads.LoadIssuesJSONL(issuesPath)
-	if err != nil {
-		return fmt.Errorf("load beads issues from %s: %w", issuesPath, err)
-	}
-	if len(issues) == 0 {
-		return fmt.Errorf("no issues found in %s", issuesPath)
-	}
 
 	client := jira.NewClient(cfg.Jira.BaseURL, cfg.Jira.Username, cfg.Jira.APIToken, cfg.Jira.AuthMethod)
-	return sync.Run(client, issues, issueKeys)
+	opts := sync.RunOptions{
+		DescPolicy:   cfg.SyncDescriptionPolicy(),
+		GitCommitSHA: gitCommitFlag,
+	}
+	if opts.GitCommitSHA == "" {
+		if s := os.Getenv("GITHUB_SHA"); s != "" {
+			opts.GitCommitSHA = s
+		} else if s := os.Getenv("CI_COMMIT_SHA"); s != "" {
+			opts.GitCommitSHA = s
+		}
+	}
+	return sync.Run(client, issuesPath, issueKeys, opts)
+}
+
+func parseSyncArgs(args []string) (issueKeys []string, gitCommit string) {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--git-commit" && i+1 < len(args) {
+			gitCommit = strings.TrimSpace(args[i+1])
+			i++
+			continue
+		}
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		issueKeys = append(issueKeys, a)
+	}
+	return issueKeys, gitCommit
 }
 
 func runConfigure() error {
@@ -467,7 +489,7 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  jira-beads-sync quickstart <jira-url>         Fetch issue from Jira and convert to beads")
-	fmt.Println("  jira-beads-sync sync [issue-keys...]           Push beads changes to Jira for issues in .beads/issues.jsonl")
+	fmt.Println("  jira-beads-sync sync [issue-keys...] [--git-commit <sha>]   Push beads changes to Jira; optional commit SHA for Jira comment links")
 	fmt.Println("  jira-beads-sync fetch-by-label <label>        Fetch all issues with label from Jira")
 	fmt.Println("  jira-beads-sync fetch-jql <jql-query>         Fetch issues matching JQL query from Jira")
 	fmt.Println("  jira-beads-sync annotate <issue-id> <repo>    Annotate issue with repository info")

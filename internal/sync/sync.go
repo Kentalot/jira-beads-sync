@@ -1,6 +1,8 @@
 package sync
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -11,24 +13,51 @@ import (
 	"github.com/Kentalot/jira-beads-sync/internal/jira"
 )
 
-// Run pushes beads issue changes to Jira for issues listed in .beads/issues.jsonl that carry
-// metadata.jiraKey or external_ref in the form "jira-KEY" (some native beads stores).
+// Metadata keys for queued Jira comments (see docs/CLI_GUIDE.md).
+const (
+	metaJiraPendingComment      = "jiraPendingComment"
+	metaGitCommit               = "gitCommit"
+	metaGitCommitURL            = "gitCommitUrl"
+	metaRepositories            = "repositories"
+	metaJiraLastPostedCommentFP = "jiraLastPostedCommentFingerprint"
+)
+
+// RunOptions configures sync (description policy, optional git SHA for commit URLs).
+type RunOptions struct {
+	DescPolicy   string // "replace" or "skip"
+	GitCommitSHA string // optional; also read from issue metadata when empty
+}
+
+// Run pushes beads issue changes to Jira for issues listed in issuesPath (.beads/issues.jsonl)
+// that carry metadata.jiraKey or external_ref in the form "jira-KEY".
 // filterKeys, if non-empty, limits sync to those Jira keys (case-insensitive, e.g. PROJ-123).
-func Run(client *jira.Client, issues []beads.BeadsIssue, filterKeys []string) error {
+// After a Jira comment is posted (or deduped), issues.jsonl is saved immediately so a disk
+// failure cannot leave a queued comment that would duplicate on retry.
+func Run(client *jira.Client, issuesPath string, filterKeys []string, opts RunOptions) error {
 	filter := normalizeKeySet(filterKeys)
+
+	lines, err := beads.LoadIssuesJSONLinesPreserve(issuesPath)
+	if err != nil {
+		return err
+	}
+	if len(lines) == 0 {
+		return fmt.Errorf("no issues found in %s", issuesPath)
+	}
+
 	if len(filter) > 0 {
-		inFile := jiraKeysInIssues(issues)
+		inFile := jiraKeysInLines(lines)
 		for k := range filter {
 			if !inFile[k] {
-				fmt.Fprintf(os.Stderr, "warning: %s not found in .beads/issues.jsonl (no metadata.jiraKey or jira-* external_ref on any issue)\n", k)
+				fmt.Fprintf(os.Stderr, "warning: %s not found in %s (no metadata.jiraKey or jira-* external_ref on any issue)\n", k, issuesPath)
 			}
 		}
 	}
 	pc := converter.NewProtoConverter()
 
 	var synced, skipped, failed int
-	for i := range issues {
-		issue := &issues[i]
+
+	for i := range lines {
+		issue := &lines[i].Issue
 		jkey := jiraKeyFromIssue(issue)
 		if jkey == "" {
 			fmt.Printf("skip %s: no Jira key (set metadata.jiraKey or external_ref like \"jira-PROJ-123\")\n", issue.ID)
@@ -49,11 +78,16 @@ func Run(client *jira.Client, issues []beads.BeadsIssue, filterKeys []string) er
 		}
 
 		fmt.Printf("sync %s -> %s ...\n", issue.ID, jkeyUpper)
-		changed, err := syncOne(client, pc, issue, jkeyUpper)
+		changed, rowDirty, err := syncOne(client, pc, issue, jkeyUpper, opts)
 		if err != nil {
 			fmt.Printf("  error: %v\n", err)
 			failed++
 			continue
+		}
+		if rowDirty {
+			if saveErr := beads.SaveIssuesJSONLinesPreserve(issuesPath, lines); saveErr != nil {
+				return fmt.Errorf("issue %s: Jira comment was processed but saving %s failed (retry may duplicate a Jira comment; remove metadata.jiraPendingComment manually if needed): %w", issue.ID, issuesPath, saveErr)
+			}
 		}
 		if !changed {
 			fmt.Printf("  already up to date with Jira\n")
@@ -108,10 +142,10 @@ func normalizeKeySet(keys []string) map[string]struct{} {
 	return out
 }
 
-func jiraKeysInIssues(issues []beads.BeadsIssue) map[string]bool {
+func jiraKeysInLines(lines []beads.IssueJSONLLine) map[string]bool {
 	m := make(map[string]bool)
-	for i := range issues {
-		k := jiraKeyFromIssue(&issues[i])
+	for i := range lines {
+		k := jiraKeyFromIssue(&lines[i].Issue)
 		if k == "" {
 			continue
 		}
@@ -144,11 +178,101 @@ func localAssigneeForJira(issue *beads.BeadsIssue) string {
 	return a
 }
 
-func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.BeadsIssue, jiraKey string) (bool, error) {
-	remote, err := client.FetchIssue(jiraKey)
-	if err != nil {
-		return false, err
+func buildPendingCommentBody(meta map[string]string, envSHA string) string {
+	if meta == nil {
+		return ""
 	}
+	msg := strings.TrimSpace(meta[metaJiraPendingComment])
+	if msg == "" {
+		return ""
+	}
+	sha := strings.TrimSpace(envSHA)
+	if sha == "" {
+		sha = strings.TrimSpace(meta[metaGitCommit])
+	}
+	link := strings.TrimSpace(meta[metaGitCommitURL])
+	if link == "" && sha != "" {
+		link = commitURLFromRepos(meta[metaRepositories], sha)
+	}
+	if link != "" {
+		msg = msg + "\n\n" + link
+	}
+	return msg
+}
+
+func commitURLFromRepos(reposCSV, sha string) string {
+	sha = strings.TrimSpace(sha)
+	if sha == "" {
+		return ""
+	}
+	for _, raw := range strings.Split(reposCSV, ",") {
+		base := normalizeRepoBase(strings.TrimSpace(raw))
+		if base != "" {
+			return strings.TrimSuffix(base, "/") + "/commit/" + sha
+		}
+	}
+	return ""
+}
+
+func normalizeRepoBase(repo string) string {
+	repo = strings.TrimSpace(repo)
+	if repo == "" {
+		return ""
+	}
+	low := strings.ToLower(repo)
+
+	const gh = "git@github.com:"
+	if len(repo) >= len(gh) && low[:len(gh)] == gh {
+		return "https://github.com/" + trimGitSuffix(repo[len(gh):])
+	}
+	const gl = "git@gitlab.com:"
+	if len(repo) >= len(gl) && low[:len(gl)] == gl {
+		return "https://gitlab.com/" + trimGitSuffix(repo[len(gl):])
+	}
+	if strings.Contains(low, "github.com/") {
+		return trimGitSuffix(repo)
+	}
+	if strings.Contains(low, "gitlab.com/") {
+		return trimGitSuffix(repo)
+	}
+	return ""
+}
+
+func trimGitSuffix(s string) string {
+	s = strings.TrimSuffix(s, "/")
+	return strings.TrimSuffix(s, ".git")
+}
+
+func commentBodyFingerprint(body string) string {
+	h := sha256.Sum256([]byte(body))
+	return hex.EncodeToString(h[:])
+}
+
+func clearPendingJiraQueueMetadata(issue *beads.BeadsIssue) {
+	if issue.Metadata == nil {
+		return
+	}
+	delete(issue.Metadata, metaJiraPendingComment)
+	delete(issue.Metadata, metaGitCommit)
+	delete(issue.Metadata, metaGitCommitURL)
+}
+
+func applyAfterSuccessfulJiraComment(issue *beads.BeadsIssue, postedBody string) {
+	clearPendingJiraQueueMetadata(issue)
+	if issue.Metadata == nil {
+		issue.Metadata = make(map[string]string)
+	}
+	issue.Metadata[metaJiraLastPostedCommentFP] = commentBodyFingerprint(postedBody)
+}
+
+func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.BeadsIssue, jiraKey string, opts RunOptions) (changed bool, jsonlDirty bool, err error) {
+	fetched, err := client.FetchIssueWithHints(jiraKey)
+	if err != nil {
+		return false, false, err
+	}
+	remote := fetched.Issue
+
+	pendingBody := buildPendingCommentBody(local.Metadata, opts.GitCommitSHA)
 
 	wantStatus := strings.TrimSpace(local.Status)
 	if wantStatus == "" {
@@ -166,21 +290,32 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 	prioChanged := local.Priority != remoteRank
 	assigneeChanged := !assigneesEqual(localAssignee, remoteAssignee)
 
-	if !titleChanged && !descChanged && !statusChanged && !prioChanged && !assigneeChanged {
-		return false, nil
+	mayPushDescription := false
+	switch strings.ToLower(strings.TrimSpace(opts.DescPolicy)) {
+	case "skip":
+		mayPushDescription = false
+	default: // replace
+		mayPushDescription = descChanged && !fetched.DescriptionPresentButUnparsed
+		if fetched.DescriptionPresentButUnparsed && descChanged {
+			fmt.Printf("  warning: skipping Jira description update (remote description is rich text / ADF we cannot round-trip)\n")
+		}
+	}
+
+	if !titleChanged && !mayPushDescription && !statusChanged && !prioChanged && !assigneeChanged && pendingBody == "" {
+		return false, false, nil
 	}
 
 	fields := map[string]any{}
 	if titleChanged {
 		fields["summary"] = local.Title
 	}
-	if descChanged {
+	if mayPushDescription {
 		fields["description"] = local.Description
 	}
 	if prioChanged {
 		id, err := resolvePriorityID(client, jiraKey, local.Priority)
 		if err != nil {
-			return false, fmt.Errorf("priority: %w", err)
+			return false, false, fmt.Errorf("priority: %w", err)
 		}
 		if id != "" {
 			fields["priority"] = map[string]any{"id": id}
@@ -192,7 +327,7 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 		} else {
 			accountID, err := client.SearchUserAccountID(localAssignee)
 			if err != nil {
-				return false, fmt.Errorf("assignee: %w", err)
+				return false, false, fmt.Errorf("assignee: %w", err)
 			}
 			fields["assignee"] = map[string]any{"accountId": accountID}
 		}
@@ -200,25 +335,44 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 
 	if len(fields) > 0 {
 		if err := client.UpdateIssueFields(jiraKey, fields); err != nil {
-			return false, err
+			return false, false, err
 		}
+		changed = true
 	}
 
 	if statusChanged {
 		transitions, err := client.ListTransitions(jiraKey)
 		if err != nil {
-			return false, fmt.Errorf("status: %w", err)
+			return false, false, fmt.Errorf("status: %w", err)
 		}
 		tid, err := pickTransition(pc, transitions, wantStatus)
 		if err != nil {
-			return false, fmt.Errorf("status: %w", err)
+			return false, false, fmt.Errorf("status: %w", err)
 		}
 		if err := client.DoTransition(jiraKey, tid); err != nil {
-			return false, err
+			return false, false, fmt.Errorf("status: %w", err)
+		}
+		changed = true
+	}
+
+	if pendingBody != "" {
+		fp := commentBodyFingerprint(pendingBody)
+		if local.Metadata != nil && local.Metadata[metaJiraLastPostedCommentFP] == fp {
+			fmt.Printf("  skipping Jira comment (same content as last posted fingerprint); clearing queued metadata\n")
+			clearPendingJiraQueueMetadata(local)
+			changed = true
+			jsonlDirty = true
+		} else {
+			if err := client.AddIssueComment(jiraKey, pendingBody); err != nil {
+				return changed, false, err
+			}
+			applyAfterSuccessfulJiraComment(local, pendingBody)
+			changed = true
+			jsonlDirty = true
 		}
 	}
 
-	return true, nil
+	return changed, jsonlDirty, nil
 }
 
 func assigneesEqual(local, remote string) bool {

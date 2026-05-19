@@ -223,3 +223,21 @@ func TestPlainDescriptionFromRaw(t *testing.T) {
 		t.Fatalf("adf: want empty, got %q", got)
 	}
 }
+
+func TestDescriptionPresentButUnparsed(t *testing.T) {
+	if DescriptionPresentButUnparsed(nil) {
+		t.Fatal("nil")
+	}
+	if DescriptionPresentButUnparsed(json.RawMessage(`null`)) {
+		t.Fatal("null")
+	}
+	if DescriptionPresentButUnparsed(json.RawMessage(`""`)) {
+		t.Fatal("empty json string is not unparsed")
+	}
+	if !DescriptionPresentButUnparsed(json.RawMessage(`{"type":"doc","version":1}`)) {
+		t.Fatal("adf object should be unparsed")
+	}
+	if DescriptionPresentButUnparsed(json.RawMessage(`"plain"`)) {
+		t.Fatal("json string is plain")
+	}
+}

@@ -1,7 +1,6 @@
 package beads
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -88,38 +87,23 @@ func TestRenderExport(t *testing.T) {
 		t.Error("Epics JSONL file was not created")
 	}
 
-	// Parse and verify issues.jsonl content
-	issuesData, err := os.Open(issuesFile)
+	loaded, err := LoadIssuesJSONL(issuesFile)
 	if err != nil {
-		t.Fatalf("Failed to open issues.jsonl: %v", err)
+		t.Fatalf("Failed to load issues.jsonl: %v", err)
 	}
-	defer func() {
-		_ = issuesData.Close()
-	}()
-
-	scanner := bufio.NewScanner(issuesData)
-	issueCount := 0
-	for scanner.Scan() {
-		issueCount++
-		var issue BeadsIssue
-		if err := json.Unmarshal(scanner.Bytes(), &issue); err != nil {
-			t.Errorf("Failed to parse JSON line %d: %v", issueCount, err)
-		}
-
-		// Verify required fields
+	if len(loaded) != 2 {
+		t.Fatalf("Expected 2 issues, got %d", len(loaded))
+	}
+	for i, issue := range loaded {
 		if issue.ID == "" {
-			t.Error("Issue ID is empty")
+			t.Errorf("issue %d: ID is empty", i)
 		}
 		if issue.Title == "" {
-			t.Error("Issue title is empty")
+			t.Errorf("issue %d: title is empty", i)
 		}
 		if issue.Status == "" {
-			t.Error("Issue status is empty")
+			t.Errorf("issue %d: status is empty", i)
 		}
-	}
-
-	if issueCount != 2 {
-		t.Errorf("Expected 2 issues, got %d", issueCount)
 	}
 }
 
@@ -365,29 +349,20 @@ func TestAddRepositoryAnnotation(t *testing.T) {
 
 	// Read back and verify
 	issuesFile := filepath.Join(tmpDir, ".beads", "issues.jsonl")
-	data, err := os.ReadFile(issuesFile)
+	loaded, err := LoadIssuesJSONL(issuesFile)
 	if err != nil {
 		t.Fatalf("Failed to read issues.jsonl: %v", err)
 	}
-
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) != 2 {
-		t.Fatalf("Expected 2 lines, got %d", len(lines))
+	if len(loaded) != 2 {
+		t.Fatalf("Expected 2 issues, got %d", len(loaded))
 	}
 
-	var annotated BeadsIssue
-	if err := json.Unmarshal([]byte(lines[0]), &annotated); err != nil {
-		t.Fatalf("Failed to parse first issue: %v", err)
-	}
+	annotated := loaded[0]
 	if annotated.Metadata == nil || annotated.Metadata["repositories"] != "https://github.com/org/repo" {
 		t.Errorf("Expected repository annotation, got metadata: %v", annotated.Metadata)
 	}
 
-	// Second issue should be unchanged
-	var unannotated BeadsIssue
-	if err := json.Unmarshal([]byte(lines[1]), &unannotated); err != nil {
-		t.Fatalf("Failed to parse second issue: %v", err)
-	}
+	unannotated := loaded[1]
 	if unannotated.Metadata != nil && unannotated.Metadata["repositories"] != "" {
 		t.Errorf("Expected second issue to have no repository annotation, got: %v", unannotated.Metadata)
 	}
@@ -439,15 +414,14 @@ func TestAddRepositoryAnnotationMultiple(t *testing.T) {
 	}
 
 	issuesFile := filepath.Join(tmpDir, ".beads", "issues.jsonl")
-	data, err := os.ReadFile(issuesFile)
+	loaded, err := LoadIssuesJSONL(issuesFile)
 	if err != nil {
 		t.Fatalf("Failed to read issues.jsonl: %v", err)
 	}
-
-	var issue BeadsIssue
-	if err := json.Unmarshal([]byte(strings.TrimSpace(string(data))), &issue); err != nil {
-		t.Fatalf("Failed to parse issue: %v", err)
+	if len(loaded) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(loaded))
 	}
+	issue := loaded[0]
 
 	repos := issue.Metadata["repositories"]
 	if repos != "https://github.com/org/repo1,https://github.com/org/repo2" {

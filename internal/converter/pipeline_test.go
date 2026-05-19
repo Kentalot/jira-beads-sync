@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Kentalot/jira-beads-sync/internal/beads"
 )
 
 func TestNewPipeline(t *testing.T) {
@@ -55,28 +57,37 @@ func TestPipelineConvertFile(t *testing.T) {
 	}
 
 	// Read and verify issues.jsonl content
-	content, err := os.ReadFile(issuesFile)
+	loaded, err := beads.LoadIssuesJSONL(issuesFile)
 	if err != nil {
 		t.Fatalf("Failed to read issues.jsonl: %v", err)
 	}
-
-	contentStr := string(content)
-
-	// Verify key fields are present in JSONL format
-	expectedFields := []string{
-		`"id":"proj-2"`,
-		`"title":"Create login API endpoint"`,
-		`"status":"open"`,
-		`"priority":1`,
-		`"epic":"proj-1"`,
-		`"dependsOn":["proj-4"]`,
-		`"jiraKey":"PROJ-2"`,
-	}
-
-	for _, field := range expectedFields {
-		if !containsSubstring(contentStr, field) {
-			t.Errorf("Expected field '%s' not found in issues.jsonl.\nContent:\n%s", field, contentStr)
+	var proj2 *beads.BeadsIssue
+	for i := range loaded {
+		if loaded[i].ID == "proj-2" {
+			proj2 = &loaded[i]
+			break
 		}
+	}
+	if proj2 == nil {
+		t.Fatal("expected issue proj-2 in issues.jsonl")
+	}
+	if proj2.Title != "Create login API endpoint" {
+		t.Errorf("proj-2 title: got %q", proj2.Title)
+	}
+	if proj2.Status != "open" {
+		t.Errorf("proj-2 status: got %q", proj2.Status)
+	}
+	if proj2.Priority != 1 {
+		t.Errorf("proj-2 priority: got %d", proj2.Priority)
+	}
+	if proj2.Epic != "proj-1" {
+		t.Errorf("proj-2 epic: got %q", proj2.Epic)
+	}
+	if len(proj2.DependsOn) != 1 || proj2.DependsOn[0] != "proj-4" {
+		t.Errorf("proj-2 dependsOn: got %#v", proj2.DependsOn)
+	}
+	if proj2.Metadata == nil || proj2.Metadata["jiraKey"] != "PROJ-2" {
+		t.Errorf("proj-2 jiraKey metadata: got %#v", proj2.Metadata)
 	}
 }
 
@@ -127,7 +138,6 @@ func TestPipelineEndToEnd(t *testing.T) {
 		t.Fatalf("Failed to read epics.jsonl: %v", err)
 	}
 	epicsStr := string(epicsContent)
-	// Count lines (each line is one epic)
 	epicLines := 0
 	for _, line := range splitLines(epicsStr) {
 		if len(line) > 0 {
@@ -144,7 +154,6 @@ func TestPipelineEndToEnd(t *testing.T) {
 		t.Fatalf("Failed to read issues.jsonl: %v", err)
 	}
 	issuesStr := string(issuesContent)
-	// Count lines (each line is one issue)
 	issueLines := 0
 	for _, line := range splitLines(issuesStr) {
 		if len(line) > 0 {
@@ -155,21 +164,26 @@ func TestPipelineEndToEnd(t *testing.T) {
 		t.Errorf("Expected 3 issues, got %d", issueLines)
 	}
 
-	// Verify PROJ-2 has correct dependencies and epic link
-	if !containsSubstring(issuesStr, `"id":"proj-2"`) {
-		t.Error("PROJ-2 should exist in issues")
+	loaded, err := beads.LoadIssuesJSONL(issuesFile)
+	if err != nil {
+		t.Fatalf("load issues: %v", err)
 	}
-	if !containsSubstring(issuesStr, `"epic":"proj-1"`) {
+	var proj2 *beads.BeadsIssue
+	for i := range loaded {
+		if loaded[i].ID == "proj-2" {
+			proj2 = &loaded[i]
+			break
+		}
+	}
+	if proj2 == nil {
+		t.Fatal("PROJ-2 (proj-2) should exist in issues")
+	}
+	if proj2.Epic != "proj-1" {
 		t.Error("PROJ-2 should be linked to epic proj-1")
 	}
-	if !containsSubstring(issuesStr, `"dependsOn":["proj-4"]`) {
+	if len(proj2.DependsOn) != 1 || proj2.DependsOn[0] != "proj-4" {
 		t.Error("PROJ-2 should depend on proj-4")
 	}
-}
-
-// Helper function to check if a string contains a substring
-func containsSubstring(s, substr string) bool {
-	return strings.Contains(s, substr)
 }
 
 // Helper function to split string into lines

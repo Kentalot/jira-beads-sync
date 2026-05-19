@@ -121,6 +121,19 @@ func TestConfigValidate(t *testing.T) {
 			expectError: true,
 			errorMsg:    "jira auth method must be 'basic' or 'bearer', got: invalid",
 		},
+		{
+			name: "invalid sync_description_policy",
+			config: &Config{
+				Jira: JiraConfig{
+					BaseURL:               "https://jira.example.com",
+					Username:              "user@example.com",
+					APIToken:              "token123",
+					SyncDescriptionPolicy: "merge_append",
+				},
+			},
+			expectError: true,
+			errorMsg:    "jira sync_description_policy must be 'replace' or 'skip', got: merge_append",
+		},
 	}
 
 	for _, tt := range tests {
@@ -139,6 +152,17 @@ func TestConfigValidate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSyncDescriptionPolicyNormalized(t *testing.T) {
+	c := &Config{Jira: JiraConfig{SyncDescriptionPolicy: "SKIP"}}
+	if c.SyncDescriptionPolicy() != "skip" {
+		t.Fatalf("got %q", c.SyncDescriptionPolicy())
+	}
+	c2 := &Config{Jira: JiraConfig{}}
+	if c2.SyncDescriptionPolicy() != "replace" {
+		t.Fatalf("got %q", c2.SyncDescriptionPolicy())
 	}
 }
 

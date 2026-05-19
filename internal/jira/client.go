@@ -54,6 +54,24 @@ func (c *Client) setAuthHeader(req *http.Request) {
 
 // FetchIssue fetches a single issue by key (e.g., "PROJ-123")
 func (c *Client) FetchIssue(issueKey string) (*pb.Issue, error) {
+	f, err := c.FetchIssueWithHints(issueKey)
+	if err != nil {
+		return nil, err
+	}
+	return f.Issue, nil
+}
+
+// FetchedIssue is the result of GET issue including hints for safe bidirectional sync.
+type FetchedIssue struct {
+	Issue *pb.Issue
+	// DescriptionPresentButUnparsed is true when Jira returned a description we cannot
+	// represent as plain text (e.g. ADF), so overwriting description from beads is unsafe.
+	DescriptionPresentButUnparsed bool
+}
+
+// FetchIssueWithHints is like FetchIssue but includes DescriptionPresentButUnparsed when
+// the remote description is non-empty in JSON but not a plain string (e.g. ADF on Jira Cloud).
+func (c *Client) FetchIssueWithHints(issueKey string) (*FetchedIssue, error) {
 	if err := ValidateIssueKey(issueKey); err != nil {
 		return nil, err
 	}
@@ -87,7 +105,6 @@ func (c *Client) FetchIssue(issueKey string) (*pb.Issue, error) {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	// Parse single issue into an export with one issue
 	var jsonIssue jsonIssue
 	if err := json.Unmarshal(body, &jsonIssue); err != nil {
 		return nil, fmt.Errorf("failed to parse issue: %w", err)
@@ -98,7 +115,10 @@ func (c *Client) FetchIssue(issueKey string) (*pb.Issue, error) {
 		return nil, fmt.Errorf("failed to convert issue: %w", err)
 	}
 
-	return issue, nil
+	return &FetchedIssue{
+		Issue:                         issue,
+		DescriptionPresentButUnparsed: DescriptionPresentButUnparsed(jsonIssue.Fields.Description),
+	}, nil
 }
 
 // UserInfo represents basic information about a Jira user

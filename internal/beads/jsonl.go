@@ -101,18 +101,20 @@ func (r *JSONLRenderer) renderEpicsToJSONL(filename string, epics []*pb.Epic) (e
 
 // BeadsIssue represents a beads issue in JSON format
 type BeadsIssue struct {
-	ID          string            `json:"id"`
-	Title       string            `json:"title"`
-	Description string            `json:"description,omitempty"`
-	Status      string            `json:"status"`
-	Priority    int               `json:"priority,omitempty"`
-	Epic        string            `json:"epic,omitempty"`
-	Assignee    string            `json:"assignee,omitempty"`
-	Labels      []string          `json:"labels,omitempty"`
-	DependsOn   []string          `json:"dependsOn,omitempty"`
-	Created     string            `json:"created,omitempty"`
-	Updated     string            `json:"updated,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status"`
+	Priority    int      `json:"priority,omitempty"`
+	Epic        string   `json:"epic,omitempty"`
+	Assignee    string   `json:"assignee,omitempty"`
+	Labels      []string `json:"labels,omitempty"`
+	DependsOn   []string `json:"dependsOn,omitempty"`
+	Created     string   `json:"created,omitempty"`
+	Updated     string   `json:"updated,omitempty"`
+	// Metadata may include jiraKey, jiraId, repositories (from annotate), jiraPendingComment,
+	// gitCommit, gitCommitUrl, jiraLastPostedCommentFingerprint (set by sync after posting) — see docs/CLI_GUIDE.md sync section.
+	Metadata map[string]string `json:"metadata,omitempty"`
 	// ExternalRef is set by some beads deployments (e.g. "jira-PROJ-123") when metadata.jiraKey is absent.
 	ExternalRef string `json:"external_ref,omitempty"`
 	// Owner is sometimes used (e.g. Illumina beads) for email while assignee is a display name.

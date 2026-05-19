@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -19,6 +20,10 @@ type JiraConfig struct {
 	Username   string `yaml:"username"`
 	APIToken   string `yaml:"api_token"`
 	AuthMethod string `yaml:"auth_method"` // "basic" or "bearer"
+	// SyncDescriptionPolicy controls pushing beads description to Jira: "replace" (default)
+	// updates when safe; "skip" never updates description. Rich-text / ADF remotes are never
+	// overwritten unless we can round-trip (we skip automatically when detected).
+	SyncDescriptionPolicy string `yaml:"sync_description_policy,omitempty"`
 }
 
 // configPathFunc is a variable that can be overridden in tests
@@ -48,6 +53,9 @@ func Load() (*Config, error) {
 	}
 	if authMethod := os.Getenv("JIRA_AUTH_METHOD"); authMethod != "" {
 		config.Jira.AuthMethod = authMethod
+	}
+	if syncDesc := os.Getenv("JIRA_SYNC_DESCRIPTION_POLICY"); syncDesc != "" {
+		config.Jira.SyncDescriptionPolicy = syncDesc
 	}
 
 	// Default to basic auth if not specified
@@ -87,7 +95,21 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	p := strings.ToLower(strings.TrimSpace(c.Jira.SyncDescriptionPolicy))
+	if p != "" && p != "replace" && p != "skip" {
+		return fmt.Errorf("jira sync_description_policy must be 'replace' or 'skip', got: %s", c.Jira.SyncDescriptionPolicy)
+	}
+
 	return nil
+}
+
+// SyncDescriptionPolicy returns the normalized policy: "replace" or "skip".
+func (c *Config) SyncDescriptionPolicy() string {
+	p := strings.ToLower(strings.TrimSpace(c.Jira.SyncDescriptionPolicy))
+	if p == "skip" {
+		return "skip"
+	}
+	return "replace"
 }
 
 // Save saves the configuration to a file

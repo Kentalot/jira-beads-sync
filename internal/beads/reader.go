@@ -1,10 +1,6 @@
 package beads
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
-	"os"
 	"path/filepath"
 )
 
@@ -15,25 +11,13 @@ func IssuesJSONLPath(outputDir string) string {
 
 // LoadIssuesJSONL reads all issues from a beads issues.jsonl file.
 func LoadIssuesJSONL(path string) ([]BeadsIssue, error) {
-	f, err := os.Open(path)
+	lines, err := LoadIssuesJSONLinesPreserve(path)
 	if err != nil {
-		return nil, fmt.Errorf("open issues jsonl: %w", err)
+		return nil, err
 	}
-	defer f.Close()
-
-	var issues []BeadsIssue
-	scanner := bufio.NewScanner(f)
-	line := 0
-	for scanner.Scan() {
-		line++
-		var issue BeadsIssue
-		if err := json.Unmarshal(scanner.Bytes(), &issue); err != nil {
-			return nil, fmt.Errorf("parse issues.jsonl line %d: %w", line, err)
-		}
-		issues = append(issues, issue)
+	out := make([]BeadsIssue, len(lines))
+	for i := range lines {
+		out[i] = lines[i].Issue
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("read issues jsonl: %w", err)
-	}
-	return issues, nil
+	return out, nil
 }
