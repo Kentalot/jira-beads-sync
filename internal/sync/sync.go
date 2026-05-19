@@ -28,18 +28,23 @@ type RunOptions struct {
 	GitCommitSHA string // optional; also read from issue metadata when empty
 }
 
-// Run pushes beads issue changes to Jira for issues listed in issuesPath (.beads/issues.jsonl)
-// that carry metadata.jiraKey or external_ref in the form "jira-KEY".
-// filterKeys, if non-empty, limits sync to those Jira keys (case-insensitive, e.g. PROJ-123).
-// After a Jira comment is posted (or deduped), issues.jsonl is saved immediately so a disk
-// failure cannot leave a queued comment that would duplicate on retry.
+// Run loads issuesPath and delegates to RunWithLines.
 func Run(client *jira.Client, issuesPath string, filterKeys []string, opts RunOptions) error {
-	filter := normalizeKeySet(filterKeys)
-
 	lines, err := beads.LoadIssuesJSONLinesPreserve(issuesPath)
 	if err != nil {
 		return err
 	}
+	return RunWithLines(client, issuesPath, lines, filterKeys, opts)
+}
+
+// RunWithLines pushes beads issue changes to Jira for issues in lines (from .beads/issues.jsonl)
+// that carry metadata.jiraKey or external_ref in the form "jira-KEY".
+// filterKeys, if non-empty, limits sync to those Jira keys (case-insensitive, e.g. PROJ-123).
+// After a Jira comment is posted (or deduped), issues.jsonl is saved immediately so a disk
+// failure cannot leave a queued comment that would duplicate on retry.
+func RunWithLines(client *jira.Client, issuesPath string, lines []beads.IssueJSONLLine, filterKeys []string, opts RunOptions) error {
+	filter := normalizeKeySet(filterKeys)
+
 	if len(lines) == 0 {
 		return fmt.Errorf("no issues found in %s", issuesPath)
 	}
@@ -116,6 +121,12 @@ func jiraKeyFromIssue(issue *beads.BeadsIssue) string {
 		}
 	}
 	return jiraKeyFromExternalRef(issue.ExternalRef)
+}
+
+// JiraKeyForIssue returns the Jira issue key for a beads issue from metadata.jiraKey or
+// external_ref "jira-KEY", or "" if none.
+func JiraKeyForIssue(issue *beads.BeadsIssue) string {
+	return jiraKeyFromIssue(issue)
 }
 
 func jiraKeyFromExternalRef(ref string) string {
@@ -225,14 +236,7 @@ func normalizeRepoBase(repo string) string {
 	if len(repo) >= len(gh) && low[:len(gh)] == gh {
 		return "https://github.com/" + trimGitSuffix(repo[len(gh):])
 	}
-	const gl = "git@gitlab.com:"
-	if len(repo) >= len(gl) && low[:len(gl)] == gl {
-		return "https://gitlab.com/" + trimGitSuffix(repo[len(gl):])
-	}
 	if strings.Contains(low, "github.com/") {
-		return trimGitSuffix(repo)
-	}
-	if strings.Contains(low, "gitlab.com/") {
 		return trimGitSuffix(repo)
 	}
 	return ""
@@ -305,6 +309,25 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 		return false, false, nil
 	}
 
+	// Post queued Jira comment first (even when the issue is already closed in Jira) so a
+	// follow-up note is not skipped if later steps error.
+	if pendingBody != "" {
+		fp := commentBodyFingerprint(pendingBody)
+		if local.Metadata != nil && local.Metadata[metaJiraLastPostedCommentFP] == fp {
+			fmt.Printf("  skipping Jira comment (same content as last posted fingerprint); clearing queued metadata\n")
+			clearPendingJiraQueueMetadata(local)
+			changed = true
+			jsonlDirty = true
+		} else {
+			if err := client.AddIssueComment(jiraKey, pendingBody); err != nil {
+				return false, false, err
+			}
+			applyAfterSuccessfulJiraComment(local, pendingBody)
+			changed = true
+			jsonlDirty = true
+		}
+	}
+
 	fields := map[string]any{}
 	if titleChanged {
 		fields["summary"] = local.Title
@@ -353,23 +376,6 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 			return false, false, fmt.Errorf("status: %w", err)
 		}
 		changed = true
-	}
-
-	if pendingBody != "" {
-		fp := commentBodyFingerprint(pendingBody)
-		if local.Metadata != nil && local.Metadata[metaJiraLastPostedCommentFP] == fp {
-			fmt.Printf("  skipping Jira comment (same content as last posted fingerprint); clearing queued metadata\n")
-			clearPendingJiraQueueMetadata(local)
-			changed = true
-			jsonlDirty = true
-		} else {
-			if err := client.AddIssueComment(jiraKey, pendingBody); err != nil {
-				return changed, false, err
-			}
-			applyAfterSuccessfulJiraComment(local, pendingBody)
-			changed = true
-			jsonlDirty = true
-		}
 	}
 
 	return changed, jsonlDirty, nil

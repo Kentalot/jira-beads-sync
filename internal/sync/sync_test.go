@@ -70,6 +70,44 @@ func TestJiraKeyFromExternalRef(t *testing.T) {
 	}
 }
 
+func TestBranchContainsJiraKey(t *testing.T) {
+	tests := []struct {
+		branch, key string
+		want        bool
+	}{
+		{"feature/PROJ-123-fix", "PROJ-123", true},
+		{"PROJ-123", "PROJ-123", true},
+		{"feature/PROJ-1234-fix", "PROJ-123", false},
+		{"xPROJ-123", "PROJ-123", false},
+		{"feature/proj-123", "PROJ-123", true},
+		{"", "PROJ-123", false},
+		{"main", "PROJ-123", false},
+	}
+	for _, tc := range tests {
+		if got := BranchContainsJiraKey(tc.branch, tc.key); got != tc.want {
+			t.Errorf("BranchContainsJiraKey(%q,%q)=%v want %v", tc.branch, tc.key, got, tc.want)
+		}
+	}
+}
+
+func TestNormalizeGitRemoteToHTTPSBase(t *testing.T) {
+	tests := []struct {
+		remote, want string
+	}{
+		{"git@github.com:org/repo.git", "https://github.com/org/repo"},
+		{"https://github.com/org/repo.git", "https://github.com/org/repo"},
+		{"git@git.example.com:grp/rp.git", "https://git.example.com/grp/rp"},
+		{"ssh://git@git.example.com/grp/rp.git", "https://git.example.com/grp/rp"},
+		{"ssh://git.example.com/grp/rp.git", "https://git.example.com/grp/rp"},
+		{"", ""},
+	}
+	for _, tc := range tests {
+		if got := normalizeGitRemoteToHTTPSBase(tc.remote); got != tc.want {
+			t.Errorf("normalizeGitRemoteToHTTPSBase(%q)=%q want %q", tc.remote, got, tc.want)
+		}
+	}
+}
+
 func TestBuildPendingCommentBody(t *testing.T) {
 	meta := map[string]string{
 		metaJiraPendingComment: "done",

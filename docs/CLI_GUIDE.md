@@ -116,19 +116,21 @@ Sync beads state changes back to Jira via the API.
 
 **Usage:**
 ```bash
-jira-beads-sync sync [issue-keys...] [--git-commit <sha>]
+jira-beads-sync sync [issue-keys...]
 ```
 
 **Arguments:**
-- `[issue-keys...]`: Optional list of specific issue keys to sync (e.g., `PROJ-123 PROJ-456`)
-- `--git-commit <sha>`: Optional commit SHA appended as a link when posting a queued Jira comment (see metadata below). You can also set `GITHUB_SHA` or `CI_COMMIT_SHA` in the environment instead of this flag.
-- If no keys provided, syncs all issues in `.beads/issues.jsonl` that carry a Jira mapping
+- `[issue-keys...]`: Optional list of specific issue keys to sync (e.g., `PROJ-123 PROJ-456`). When provided, branch-based narrowing (below) is **not** applied.
+- If no keys are provided:
+  - The tool reads the current git branch (`git rev-parse --abbrev-ref HEAD`). For each issue in `.beads/issues.jsonl` with a Jira mapping (`metadata.jiraKey` or `external_ref` like `jira-PROJ-123`), it checks whether the **branch name contains that Jira key as its own token** (e.g. `feature/PROJ-123-fix` matches `PROJ-123`; `feature/PROJ-1234` does **not** match `PROJ-123`).
+  - If a match is found, sync runs **only for that issue**. It sets `metadata.jiraPendingComment` from the latest commit message (`git log -1 --pretty=%B`, falling back to `%s`), sets `metadata.gitCommitUrl` when a URL can be built from `git remote get-url origin` and the current commit SHA, and uses `GITHUB_SHA`, then `CI_COMMIT_SHA`, then `git rev-parse HEAD` for the SHA when composing the comment (same as before, without a CLI flag).
+  - If **no** mapped key from the file appears in the branch name, sync runs for **all** mapped issues in `.beads/issues.jsonl` (same as listing no keys on a branch like `main` that does not contain a ticket key).
 
 **What it does:**
-1. Loads `.beads/issues.jsonl` from the current directory
-2. For each mapped issue, fetches current Jira state and compares beads fields
-3. Updates Jira via REST API (summary, description when safe, priority, assignee, status transitions)
-4. If `metadata.jiraPendingComment` is set, posts that text as a **Jira issue comment** (not as the description), then **removes** `jiraPendingComment`, `gitCommit`, and `gitCommitUrl`, sets `metadata.jiraLastPostedCommentFingerprint` to the SHA-256 (hex) of the posted body, and **rewrites `issues.jsonl` immediately** so a later disk failure cannot leave a stale queue that would duplicate the comment on retry.
+1. Loads `.beads/issues.jsonl` from the current directory (and may narrow to one issue and queue a commit comment as above).
+2. For each mapped issue selected for sync, fetches current Jira state and compares beads fields.
+3. If `metadata.jiraPendingComment` is set, posts that text as a **Jira issue comment** (not as the description) **before** other Jira field updates or transitions, including when the Jira issue is already **closed** (so follow-up notes are not skipped if later steps fail). Then **removes** `jiraPendingComment`, `gitCommit`, and `gitCommitUrl`, sets `metadata.jiraLastPostedCommentFingerprint` to the SHA-256 (hex) of the posted body, and **rewrites `issues.jsonl` immediately** so a later disk failure cannot leave a stale queue that would duplicate the comment on retry.
+4. Updates Jira via REST API (summary, description when safe, priority, assignee, status transitions).
 5. If the same pending body is queued again but its fingerprint still matches `jiraLastPostedCommentFingerprint`, sync **clears the queue without posting** (recovery from a partial run or mistaken re-queue).
 6. Comment API: tries `POST /rest/api/2/issue/{key}/comment` with a plain string body; if that fails (common on some Jira Cloud setups), retries with `POST /rest/api/3/issue/{key}/comment` using minimal Atlassian Document Format (ADF)
 
@@ -136,8 +138,8 @@ jira-beads-sync sync [issue-keys...] [--git-commit <sha>]
 
 **Queued Jira comment (metadata on the beads issue):**
 - `jiraPendingComment` — body text to post on the next successful sync (required to trigger a comment)
-- `gitCommitUrl` — if set, this URL is appended after the comment text (skips auto link construction). Use the exact commit URL your Git host shows in the browser (GitLab often uses `.../-/commit/<sha>`, while some hosts use `.../commit/<sha>` — e.g. `https://git.illumina.com/Group/repo/commit/<sha>`).
-- `gitCommit` — optional SHA; with `metadata.repositories` (from `jira-beads-sync annotate`), the tool appends a link: first comma-separated HTTPS URL that looks like GitHub or **gitlab.com** gets `/commit/<sha>`. The `--git-commit` flag / `GITHUB_SHA` / `CI_COMMIT_SHA` override `gitCommit` from metadata for that link line only. For self-hosted GitLab (not `gitlab.com`), set `gitCommitUrl` explicitly.
+- `gitCommitUrl` — if set, this URL is appended after the comment text (skips auto link construction). For GitHub-style hosts this is `https://github.com/<org>/<repo>/commit/<sha>`. Branch-scoped sync sets this from `git remote get-url origin` when possible, appending `/commit/<sha>` to the normalized HTTPS repo root.
+- `gitCommit` — optional SHA; with `metadata.repositories` (from `jira-beads-sync annotate`), the tool appends a link: first comma-separated HTTPS URL that looks like **GitHub** gets `/commit/<sha>`. `GITHUB_SHA` / `CI_COMMIT_SHA` / local `git rev-parse HEAD` override `gitCommit` from metadata for that link line only when `gitCommitUrl` is not set.
 - `jiraLastPostedCommentFingerprint` — set automatically after a successful comment; used to avoid posting the same body twice if the queue was re-added by mistake.
 
 **Description behavior:**
@@ -146,14 +148,14 @@ jira-beads-sync sync [issue-keys...] [--git-commit <sha>]
 
 **Examples:**
 
-Sync all mapped issues:
+Sync all mapped issues (or only the ticket named in the current branch — see above):
 ```bash
 jira-beads-sync sync
 ```
 
-Sync specific issues with a CI commit for comment links:
+Sync specific issues only:
 ```bash
-jira-beads-sync sync PROJ-123 PROJ-456 --git-commit "$GITHUB_SHA"
+jira-beads-sync sync PROJ-123 PROJ-456
 ```
 
 **Status Mapping (beads → Jira):**
