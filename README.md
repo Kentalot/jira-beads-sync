@@ -1,10 +1,10 @@
 # jira-beads-sync
 
-[![Test and Lint](https://github.com/conallob/jira-beads-sync/actions/workflows/test.yml/badge.svg)](https://github.com/conallob/jira-beads-sync/actions/workflows/test.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/conallob/jira-beads-sync)](https://goreportcard.com/report/github.com/conallob/jira-beads-sync)
-[![License](https://img.shields.io/github/license/conallob/jira-beads-sync)](LICENSE)
-[![codecov](https://codecov.io/gh/conallob/jira-beads-sync/branch/main/graph/badge.svg)](https://codecov.io/gh/conallob/jira-beads-sync)
-[![Release](https://img.shields.io/github/v/release/conallob/jira-beads-sync)](https://github.com/conallob/jira-beads-sync/releases/latest)
+[![Test and Lint](https://github.com/Kentalot/jira-beads-sync/actions/workflows/test.yml/badge.svg)](https://github.com/Kentalot/jira-beads-sync/actions/workflows/test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Kentalot/jira-beads-sync)](https://goreportcard.com/report/github.com/Kentalot/jira-beads-sync)
+[![License](https://img.shields.io/github/license/Kentalot/jira-beads-sync)](LICENSE)
+[![codecov](https://codecov.io/gh/Kentalot/jira-beads-sync/branch/main/graph/badge.svg)](https://codecov.io/gh/Kentalot/jira-beads-sync)
+[![Release](https://img.shields.io/github/v/release/Kentalot/jira-beads-sync)](https://github.com/Kentalot/jira-beads-sync/releases/latest)
 [![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-yellow.svg)](https://www.buymeacoffee.com/conallob)
 
 > Bridge Jira and beads: Import Jira issues locally, work with git-backed issue tracking, sync changes back to Jira.
@@ -80,16 +80,16 @@ brew install jira-beads-sync
 
 ### From Binary
 
-Download from the [releases page](https://github.com/conallob/jira-beads-sync/releases/latest) or:
+Download from the [releases page](https://github.com/Kentalot/jira-beads-sync/releases/latest) or:
 
 ```bash
 # macOS (Apple Silicon)
-curl -LO https://github.com/conallob/jira-beads-sync/releases/latest/download/jira-beads-sync_Darwin_arm64.tar.gz
+curl -LO https://github.com/Kentalot/jira-beads-sync/releases/latest/download/jira-beads-sync_Darwin_arm64.tar.gz
 tar xzf jira-beads-sync_Darwin_arm64.tar.gz
 sudo mv jira-beads-sync /usr/local/bin/
 
 # Linux (x86_64)
-curl -LO https://github.com/conallob/jira-beads-sync/releases/latest/download/jira-beads-sync_Linux_x86_64.tar.gz
+curl -LO https://github.com/Kentalot/jira-beads-sync/releases/latest/download/jira-beads-sync_Linux_x86_64.tar.gz
 tar xzf jira-beads-sync_Linux_x86_64.tar.gz
 sudo mv jira-beads-sync /usr/local/bin/
 ```
@@ -97,7 +97,7 @@ sudo mv jira-beads-sync /usr/local/bin/
 ### From Source
 
 ```bash
-go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
 ```
 
 **More options:** See [Getting Started Guide](GETTING_STARTED.md#installation) for all installation methods including Docker, DEB, and RPM packages.
@@ -214,8 +214,8 @@ Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## Support
 
-- **Issues:** https://github.com/conallob/jira-beads-sync/issues
-- **Discussions:** https://github.com/conallob/jira-beads-sync/discussions
+- **Issues:** https://github.com/Kentalot/jira-beads-sync/issues
+- **Discussions:** https://github.com/Kentalot/jira-beads-sync/discussions
 - **Sponsor:** [![BuyMeACoffee](https://raw.githubusercontent.com/pachadotdev/buymeacoffee-badges/main/bmc-yellow.svg)](https://www.buymeacoffee.com/conallob)
 
 ## License

@@ -70,18 +70,18 @@ brew install jira-beads-sync
 
 ### Option 2: Download Pre-built Binary
 
-Visit the [releases page](https://github.com/conallob/jira-beads-sync/releases/latest) and download the binary for your platform:
+Visit the [releases page](https://github.com/Kentalot/jira-beads-sync/releases/latest) and download the binary for your platform:
 
 **macOS (Apple Silicon):**
 ```bash
-curl -LO https://github.com/conallob/jira-beads-sync/releases/latest/download/jira-beads-sync_Darwin_arm64.tar.gz
+curl -LO https://github.com/Kentalot/jira-beads-sync/releases/latest/download/jira-beads-sync_Darwin_arm64.tar.gz
 tar xzf jira-beads-sync_Darwin_arm64.tar.gz
 sudo mv jira-beads-sync /usr/local/bin/
 ```
 
 **Linux (x86_64):**
 ```bash
-curl -LO https://github.com/conallob/jira-beads-sync/releases/latest/download/jira-beads-sync_Linux_x86_64.tar.gz
+curl -LO https://github.com/Kentalot/jira-beads-sync/releases/latest/download/jira-beads-sync_Linux_x86_64.tar.gz
 tar xzf jira-beads-sync_Linux_x86_64.tar.gz
 sudo mv jira-beads-sync /usr/local/bin/
 ```
@@ -89,7 +89,7 @@ sudo mv jira-beads-sync /usr/local/bin/
 ### Option 3: Install from Source
 
 ```bash
-go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
 ```
 
 ### Verify Installation
@@ -298,7 +298,7 @@ Now that you understand the basics:
 ## Getting Help
 
 - **Documentation**: Check the [docs/](docs/) directory for detailed guides
-- **Issues**: Report bugs at https://github.com/conallob/jira-beads-sync/issues
+- **Issues**: Report bugs at https://github.com/Kentalot/jira-beads-sync/issues
 - **Examples**: See [EXAMPLES.md](docs/EXAMPLES.md) for common scenarios
 
 ## Common Questions

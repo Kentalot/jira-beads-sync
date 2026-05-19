@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	pb "github.com/conallob/jira-beads-sync/gen/beads"
+	pb "github.com/Kentalot/jira-beads-sync/gen/beads"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -113,6 +113,10 @@ type BeadsIssue struct {
 	Created     string            `json:"created,omitempty"`
 	Updated     string            `json:"updated,omitempty"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
+	// ExternalRef is set by some beads deployments (e.g. "jira-PROJ-123") when metadata.jiraKey is absent.
+	ExternalRef string `json:"external_ref,omitempty"`
+	// Owner is sometimes used (e.g. Illumina beads) for email while assignee is a display name.
+	Owner string `json:"owner,omitempty"`
 }
 
 // BeadsEpic represents a beads epic in JSON format

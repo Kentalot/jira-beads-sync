@@ -36,7 +36,7 @@ The jira-beads-sync Claude Code plugin enables you to manage Jira issues through
    brew install conallob/tap/jira-beads-sync
 
    # Or from source
-   go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+   go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
    ```
 
 2. **Claude Code CLI** installed (visit https://claude.ai/code)
@@ -52,7 +52,7 @@ The jira-beads-sync Claude Code plugin enables you to manage Jira issues through
 
 ```bash
 # Clone the repository
-git clone https://github.com/conallob/jira-beads-sync.git
+git clone https://github.com/Kentalot/jira-beads-sync.git
 
 # Start Claude Code with plugin enabled
 claude --plugin-dir /path/to/jira-beads-sync
@@ -558,7 +558,7 @@ In your project's `.claude/settings.json`:
   ```bash
   brew install conallob/tap/jira-beads-sync
   # or
-  go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+  go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
   ```
 - Verify it's in PATH: `which jira-beads-sync`
 
@@ -641,5 +641,5 @@ Both issues imported successfully.
 ## Getting Help
 
 - **Documentation**: Check [docs/](.) for all guides
-- **Issues**: Report problems at https://github.com/conallob/jira-beads-sync/issues
+- **Issues**: Report problems at https://github.com/Kentalot/jira-beads-sync/issues
 - **Examples**: See real usage in [EXAMPLES.md](EXAMPLES.md)

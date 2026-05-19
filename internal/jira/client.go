@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/conallob/jira-beads-sync/gen/jira"
+	pb "github.com/Kentalot/jira-beads-sync/gen/jira"
 )
 
 // Client handles communication with Jira API

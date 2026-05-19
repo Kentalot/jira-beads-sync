@@ -5,13 +5,14 @@ import (
 	"os"
 	"strings"
 
-	jirapb "github.com/conallob/jira-beads-sync/gen/jira"
-	"github.com/conallob/jira-beads-sync/internal/beads"
-	"github.com/conallob/jira-beads-sync/internal/converter"
-	"github.com/conallob/jira-beads-sync/internal/jira"
+	jirapb "github.com/Kentalot/jira-beads-sync/gen/jira"
+	"github.com/Kentalot/jira-beads-sync/internal/beads"
+	"github.com/Kentalot/jira-beads-sync/internal/converter"
+	"github.com/Kentalot/jira-beads-sync/internal/jira"
 )
 
-// Run pushes beads issue changes to Jira for issues listed in .beads/issues.jsonl that carry metadata.jiraKey.
+// Run pushes beads issue changes to Jira for issues listed in .beads/issues.jsonl that carry
+// metadata.jiraKey or external_ref in the form "jira-KEY" (some native beads stores).
 // filterKeys, if non-empty, limits sync to those Jira keys (case-insensitive, e.g. PROJ-123).
 func Run(client *jira.Client, issues []beads.BeadsIssue, filterKeys []string) error {
 	filter := normalizeKeySet(filterKeys)
@@ -19,7 +20,7 @@ func Run(client *jira.Client, issues []beads.BeadsIssue, filterKeys []string) er
 		inFile := jiraKeysInIssues(issues)
 		for k := range filter {
 			if !inFile[k] {
-				fmt.Fprintf(os.Stderr, "warning: %s not found in .beads/issues.jsonl (missing metadata.jiraKey on any issue)\n", k)
+				fmt.Fprintf(os.Stderr, "warning: %s not found in .beads/issues.jsonl (no metadata.jiraKey or jira-* external_ref on any issue)\n", k)
 			}
 		}
 	}
@@ -30,7 +31,7 @@ func Run(client *jira.Client, issues []beads.BeadsIssue, filterKeys []string) er
 		issue := &issues[i]
 		jkey := jiraKeyFromIssue(issue)
 		if jkey == "" {
-			fmt.Printf("skip %s: no metadata.jiraKey\n", issue.ID)
+			fmt.Printf("skip %s: no Jira key (set metadata.jiraKey or external_ref like \"jira-PROJ-123\")\n", issue.ID)
 			skipped++
 			continue
 		}
@@ -75,10 +76,24 @@ func validateKey(key string) error {
 }
 
 func jiraKeyFromIssue(issue *beads.BeadsIssue) string {
-	if issue.Metadata == nil {
+	if issue.Metadata != nil {
+		if k := strings.TrimSpace(issue.Metadata["jiraKey"]); k != "" {
+			return k
+		}
+	}
+	return jiraKeyFromExternalRef(issue.ExternalRef)
+}
+
+func jiraKeyFromExternalRef(ref string) string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
 		return ""
 	}
-	return strings.TrimSpace(issue.Metadata["jiraKey"])
+	const prefix = "jira-"
+	if len(ref) > len(prefix) && strings.EqualFold(ref[:len(prefix)], prefix) {
+		return ref[len(prefix):]
+	}
+	return ""
 }
 
 func normalizeKeySet(keys []string) map[string]struct{} {
@@ -116,6 +131,19 @@ func remoteAssigneeString(remote *jirapb.Issue) string {
 	return strings.TrimSpace(u.DisplayName)
 }
 
+// localAssigneeForJira prefers an email (owner or assignee) for Jira user search.
+func localAssigneeForJira(issue *beads.BeadsIssue) string {
+	a := strings.TrimSpace(issue.Assignee)
+	o := strings.TrimSpace(issue.Owner)
+	if strings.Contains(strings.ToLower(a), "@") {
+		return a
+	}
+	if o != "" {
+		return o
+	}
+	return a
+}
+
 func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.BeadsIssue, jiraKey string) (bool, error) {
 	remote, err := client.FetchIssue(jiraKey)
 	if err != nil {
@@ -130,7 +158,7 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 	remoteStatus := pc.BeadsStatusStringFromJira(remote.Fields.Status)
 	remoteRank := pc.BeadsPriorityRankFromJira(remote.Fields.Priority)
 	remoteAssignee := remoteAssigneeString(remote)
-	localAssignee := strings.TrimSpace(local.Assignee)
+	localAssignee := localAssigneeForJira(local)
 
 	titleChanged := strings.TrimSpace(local.Title) != strings.TrimSpace(remote.Fields.Summary)
 	descChanged := strings.TrimSpace(local.Description) != strings.TrimSpace(remote.Fields.Description)
@@ -152,7 +180,7 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 	if prioChanged {
 		id, err := resolvePriorityID(client, jiraKey, local.Priority)
 		if err != nil {
-			return fmt.Errorf("priority: %w", err)
+			return false, fmt.Errorf("priority: %w", err)
 		}
 		if id != "" {
 			fields["priority"] = map[string]any{"id": id}
@@ -164,7 +192,7 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 		} else {
 			accountID, err := client.SearchUserAccountID(localAssignee)
 			if err != nil {
-				return fmt.Errorf("assignee: %w", err)
+				return false, fmt.Errorf("assignee: %w", err)
 			}
 			fields["assignee"] = map[string]any{"accountId": accountID}
 		}

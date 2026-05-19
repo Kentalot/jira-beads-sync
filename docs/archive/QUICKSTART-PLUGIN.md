@@ -6,12 +6,12 @@ This guide helps you get started using the jira-beads-sync Claude Code plugin.
 
 1. **Install the CLI tool:**
    ```bash
-   go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+   go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
    ```
 
 2. **Clone the repository:**
    ```bash
-   git clone https://github.com/conallob/jira-beads-sync.git
+   git clone https://github.com/Kentalot/jira-beads-sync.git
    ```
 
 3. **Start Claude Code with the plugin:**
@@ -161,7 +161,7 @@ The plugin automatically maps Jira values to beads:
 
 Install the CLI tool:
 ```bash
-go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
 ```
 
 ### "Invalid configuration"
@@ -228,5 +228,5 @@ To always use the plugin in a specific project, add to `.claude/settings.json`:
 ## Support
 
 For issues or questions:
-- GitHub Issues: https://github.com/conallob/jira-beads-sync/issues
-- Repository: https://github.com/conallob/jira-beads-sync
+- GitHub Issues: https://github.com/Kentalot/jira-beads-sync/issues
+- Repository: https://github.com/Kentalot/jira-beads-sync

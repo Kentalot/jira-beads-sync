@@ -34,7 +34,7 @@ jobs:
 
     - name: Verify protobuf generation
       run: |
-        protoc --go_out=. --go_opt=module=github.com/conallob/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
+        protoc --go_out=. --go_opt=module=github.com/Kentalot/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
         git diff --exit-code || (echo "Protobuf files not up to date. Run: make proto" && exit 1)
 
     - name: Cache Go modules
@@ -59,7 +59,7 @@ jobs:
 
     - name: Remove generated code from coverage
       if: matrix.go-version == '1.25.5'
-      run: grep -v "^github.com/conallob/jira-beads-sync/gen/" coverage.out > coverage.filtered.out && mv coverage.filtered.out coverage.out
+      run: grep -v "^github.com/Kentalot/jira-beads-sync/gen/" coverage.out > coverage.filtered.out && mv coverage.filtered.out coverage.out
 
     - name: Run tests without coverage
       if: matrix.go-version != '1.25.5'
@@ -112,7 +112,7 @@ jobs:
 
     - name: Generate protobuf files
       if: steps.filter.outputs.go == 'true' || github.event_name == 'push'
-      run: protoc --go_out=. --go_opt=module=github.com/conallob/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
+      run: protoc --go_out=. --go_opt=module=github.com/Kentalot/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
 
     - name: Run golangci-lint
       if: steps.filter.outputs.go == 'true' || github.event_name == 'push'
@@ -154,7 +154,7 @@ jobs:
       run: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 
     - name: Generate protobuf files
-      run: protoc --go_out=. --go_opt=module=github.com/conallob/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
+      run: protoc --go_out=. --go_opt=module=github.com/Kentalot/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
 
     - name: Build binary
       run: go build -v -o jira-beads-sync ./cmd/jira-beads-sync

@@ -8,7 +8,7 @@ help: ## Show this help message
 
 proto: ## Generate Go code from protobuf definitions
 	@echo "Generating protobuf files..."
-	@protoc --go_out=. --go_opt=module=github.com/conallob/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
+	@protoc --go_out=. --go_opt=module=github.com/Kentalot/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
 	@echo "Protobuf generation complete"
 
 build: proto ## Build the binary

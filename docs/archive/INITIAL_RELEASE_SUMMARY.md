@@ -136,13 +136,13 @@ brew install conallob/tap/jira-beads-sync
 
 ### Debian/Ubuntu
 ```bash
-curl -LO https://github.com/conallob/jira-beads-sync/releases/download/v0.1.0/jira-beads-sync_0.1.0_amd64.deb
+curl -LO https://github.com/Kentalot/jira-beads-sync/releases/download/v0.1.0/jira-beads-sync_0.1.0_amd64.deb
 sudo dpkg -i jira-beads-sync_0.1.0_amd64.deb
 ```
 
 ### RHEL/Fedora/CentOS
 ```bash
-curl -LO https://github.com/conallob/jira-beads-sync/releases/download/v0.1.0/jira-beads-sync_0.1.0_x86_64.rpm
+curl -LO https://github.com/Kentalot/jira-beads-sync/releases/download/v0.1.0/jira-beads-sync_0.1.0_x86_64.rpm
 sudo rpm -i jira-beads-sync_0.1.0_x86_64.rpm
 ```
 
@@ -154,7 +154,7 @@ docker run ghcr.io/conallob/jira-beads-sync:v0.1.0 help
 
 ### Go Install
 ```bash
-go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@v0.1.0
+go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@v0.1.0
 ```
 
 ## Quick Start
@@ -279,4 +279,4 @@ Future enhancements under consideration:
 
 ---
 
-**Full Changelog**: https://github.com/conallob/jira-beads-sync/commits/v0.1.0
+**Full Changelog**: https://github.com/Kentalot/jira-beads-sync/commits/v0.1.0

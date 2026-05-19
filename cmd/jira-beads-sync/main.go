@@ -5,11 +5,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/conallob/jira-beads-sync/internal/beads"
-	"github.com/conallob/jira-beads-sync/internal/config"
-	"github.com/conallob/jira-beads-sync/internal/converter"
-	"github.com/conallob/jira-beads-sync/internal/jira"
-	"github.com/conallob/jira-beads-sync/internal/sync"
+	"github.com/Kentalot/jira-beads-sync/internal/beads"
+	"github.com/Kentalot/jira-beads-sync/internal/config"
+	"github.com/Kentalot/jira-beads-sync/internal/converter"
+	"github.com/Kentalot/jira-beads-sync/internal/jira"
+	"github.com/Kentalot/jira-beads-sync/internal/sync"
 )
 
 // Build-time variables injected via ldflags by goreleaser

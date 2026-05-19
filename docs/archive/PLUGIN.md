@@ -10,7 +10,7 @@ To use this plugin in development or from a local clone:
 
 ```bash
 # Clone the repository
-git clone https://github.com/conallob/jira-beads-sync.git
+git clone https://github.com/Kentalot/jira-beads-sync.git
 cd jira-beads-sync
 
 # Build the CLI tool
@@ -187,7 +187,7 @@ After import, issues are fully integrated with beads:
 
 1. Install the CLI tool:
    ```bash
-   go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+   go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
    ```
 
 2. Configure Jira credentials:
@@ -230,12 +230,12 @@ jira-beads-sync/
 
 The CLI tool is not in your PATH. Install it:
 ```bash
-go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
 ```
 
 Or build from source:
 ```bash
-git clone https://github.com/conallob/jira-beads-sync.git
+git clone https://github.com/Kentalot/jira-beads-sync.git
 cd jira-beads-sync
 make build
 sudo mv jira-beads-sync /usr/local/bin/

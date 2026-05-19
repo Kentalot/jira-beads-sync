@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	pb "github.com/conallob/jira-beads-sync/gen/jira"
+	pb "github.com/Kentalot/jira-beads-sync/gen/jira"
 )
 
 func TestAdapterParseFile(t *testing.T) {

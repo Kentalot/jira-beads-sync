@@ -3,7 +3,7 @@ version: 2
 # Note: Generated protobuf files (gen/**/*.pb.go) should be committed to the repository.
 # Do not regenerate them during the release process to avoid version-dependent diffs.
 # To regenerate protobuf files during development, run:
-#   protoc --go_out=. --go_opt=module=github.com/conallob/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
+#   protoc --go_out=. --go_opt=module=github.com/Kentalot/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
 
 before:
   hooks:
@@ -53,7 +53,7 @@ nfpms:
   - id: packages
     package_name: jira-beads-sync
     vendor: Conall O'Brien
-    homepage: https://github.com/conallob/jira-beads-sync
+    homepage: https://github.com/Kentalot/jira-beads-sync
     maintainer: Conall O'Brien <conall@conall.net>
     description: Sync Jira task trees with beads issues (bidirectional)
     license: BSD-3-Clause
@@ -123,13 +123,13 @@ release:
 
     **Debian/Ubuntu:**
     ```bash
-    curl -LO https://github.com/conallob/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_amd64.deb
+    curl -LO https://github.com/Kentalot/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_amd64.deb
     sudo dpkg -i jira-beads-sync_{{ .Version }}_amd64.deb
     ```
 
     **RHEL/Fedora/CentOS:**
     ```bash
-    curl -LO https://github.com/conallob/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_x86_64.rpm
+    curl -LO https://github.com/Kentalot/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_x86_64.rpm
     sudo rpm -i jira-beads-sync_{{ .Version }}_x86_64.rpm
     ```
 
@@ -142,12 +142,12 @@ release:
     **Manual (macOS):**
     ```bash
     # For Apple Silicon (M1/M2/M3)
-    curl -LO https://github.com/conallob/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_Darwin_arm64.tar.gz
+    curl -LO https://github.com/Kentalot/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_Darwin_arm64.tar.gz
     tar xzf jira-beads-sync_{{ .Version }}_Darwin_arm64.tar.gz
     sudo mv jira-beads-sync /usr/local/bin/
 
     # For Intel
-    curl -LO https://github.com/conallob/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_Darwin_x86_64.tar.gz
+    curl -LO https://github.com/Kentalot/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_Darwin_x86_64.tar.gz
     tar xzf jira-beads-sync_{{ .Version }}_Darwin_x86_64.tar.gz
     sudo mv jira-beads-sync /usr/local/bin/
     ```
@@ -155,12 +155,12 @@ release:
     **Manual (Linux):**
     ```bash
     # For x86_64
-    curl -LO https://github.com/conallob/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_Linux_x86_64.tar.gz
+    curl -LO https://github.com/Kentalot/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_Linux_x86_64.tar.gz
     tar xzf jira-beads-sync_{{ .Version }}_Linux_x86_64.tar.gz
     sudo mv jira-beads-sync /usr/local/bin/
 
     # For ARM64
-    curl -LO https://github.com/conallob/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_Linux_arm64.tar.gz
+    curl -LO https://github.com/Kentalot/jira-beads-sync/releases/download/{{ .Tag }}/jira-beads-sync_{{ .Version }}_Linux_arm64.tar.gz
     tar xzf jira-beads-sync_{{ .Version }}_Linux_arm64.tar.gz
     sudo mv jira-beads-sync /usr/local/bin/
     ```
@@ -181,7 +181,7 @@ brews:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
-    homepage: "https://github.com/conallob/jira-beads-sync"
+    homepage: "https://github.com/Kentalot/jira-beads-sync"
     description: "Sync Jira task trees with beads issues (bidirectional)"
     license: "BSD-3-Clause"
     install: |

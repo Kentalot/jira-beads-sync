@@ -16,7 +16,7 @@ Thank you for your interest in contributing! This document provides guidelines a
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/conallob/jira-beads-sync.git
+   git clone https://github.com/Kentalot/jira-beads-sync.git
    cd jira-beads-sync
    ```
 

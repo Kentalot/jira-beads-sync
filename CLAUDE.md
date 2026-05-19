@@ -42,7 +42,7 @@ golangci-lint run                # Run linter
 
 **Generate Protobuf Code**:
 ```bash
-protoc --go_out=. --go_opt=module=github.com/conallob/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
+protoc --go_out=. --go_opt=module=github.com/Kentalot/jira-beads-sync --proto_path=proto proto/jira.proto proto/beads.proto
 ```
 
 ### Go Project Structure
@@ -306,7 +306,7 @@ When working on Jira issues, sync them with beads:
 For users:
 ```bash
 # Install the CLI tool first
-go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
 
 # Start Claude with plugin enabled
 claude --plugin-dir /path/to/jira-beads-sync

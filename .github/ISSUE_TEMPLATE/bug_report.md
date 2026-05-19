@@ -45,8 +45,8 @@ Go version:
 ## Search for Existing Issues
 <!-- REQUIRED: Before submitting, please search for existing issues -->
 
-- [ ] I have searched [open issues](https://github.com/conallob/jira-beads-sync/issues?q=is%3Aissue+is%3Aopen) and confirmed this bug has not been reported
-- [ ] I have searched [recently closed issues](https://github.com/conallob/jira-beads-sync/issues?q=is%3Aissue+is%3Aclosed+sort%3Aupdated-desc) and confirmed this bug has not been recently fixed
+- [ ] I have searched [open issues](https://github.com/Kentalot/jira-beads-sync/issues?q=is%3Aissue+is%3Aopen) and confirmed this bug has not been reported
+- [ ] I have searched [recently closed issues](https://github.com/Kentalot/jira-beads-sync/issues?q=is%3Aissue+is%3Aclosed+sort%3Aupdated-desc) and confirmed this bug has not been recently fixed
 
 ## Additional Context
 <!-- Add any other context, screenshots, logs, or configuration files that might help -->

@@ -20,7 +20,7 @@ jira-beads-sync is a standard CLI binary that works with any AI coding tool — 
    brew install conallob/tap/jira-beads-sync
 
    # Or from source
-   go install github.com/conallob/jira-beads-sync/cmd/jira-beads-sync@latest
+   go install github.com/Kentalot/jira-beads-sync/cmd/jira-beads-sync@latest
    ```
 
 2. **Opencode** installed (see [opencode.ai](https://opencode.ai))

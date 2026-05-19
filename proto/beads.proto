@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package beads;
 
-option go_package = "github.com/conallob/jira-beads-sync/gen/beads";
+option go_package = "github.com/Kentalot/jira-beads-sync/gen/beads";
 
 import "google/protobuf/timestamp.proto";
 

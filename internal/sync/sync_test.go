@@ -3,8 +3,8 @@ package sync
 import (
 	"testing"
 
-	"github.com/conallob/jira-beads-sync/internal/converter"
-	"github.com/conallob/jira-beads-sync/internal/jira"
+	"github.com/Kentalot/jira-beads-sync/internal/converter"
+	"github.com/Kentalot/jira-beads-sync/internal/jira"
 )
 
 func mkTransition(id, toName, catKey string) jira.Transition {
@@ -47,5 +47,17 @@ func TestMatchPriorityOption(t *testing.T) {
 	id, ok := matchPriorityOption(opts, 4)
 	if !ok || id != "5" {
 		t.Fatalf("got %q ok=%v", id, ok)
+	}
+}
+
+func TestJiraKeyFromExternalRef(t *testing.T) {
+	if got := jiraKeyFromExternalRef("jira-WTF-26227"); got != "WTF-26227" {
+		t.Fatalf("got %q", got)
+	}
+	if got := jiraKeyFromExternalRef("JIRA-abc-1"); got != "abc-1" {
+		t.Fatalf("got %q", got)
+	}
+	if jiraKeyFromExternalRef("") != "" || jiraKeyFromExternalRef("other") != "" {
+		t.Fatal("expected empty")
 	}
 }

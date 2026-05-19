@@ -161,6 +161,7 @@ jira-beads-sync sync PROJ-123 PROJ-456
 
 **Limitations (current release):**
 - Sync applies to **`.beads/issues.jsonl` only** (issues imported via `quickstart` / `fetch-by-label` / `fetch-jql`). Epics in `.beads/epics.jsonl` are not pushed back to Jira yet.
+- Each issue must map to Jira using **`metadata.jiraKey`** (set by this tool on import) **or** **`external_ref`** in the form **`jira-PROJ-123`** (some native beads databases).
 - Status changes use Jira **workflow transitions**. The tool picks a transition whose destination status maps to your beads status (`open`, `in_progress`, `blocked`, `closed`). If no such transition exists from the issue’s current state, sync reports an error for that issue.
 - If Jira returns descriptions as **Atlassian Document Format (ADF)** JSON, the importer may treat the description as empty for comparison; updating description from beads may replace rich text with plain text or fail depending on your Jira configuration.
 - Assignee updates resolve the beads assignee string via **`GET /rest/api/3/user/search`** (use the user’s email when possible for an exact match).
@@ -480,5 +481,5 @@ docker run --rm \
 ## Getting Help
 
 - **Documentation**: [Main README](../README.md)
-- **Issues**: https://github.com/conallob/jira-beads-sync/issues
+- **Issues**: https://github.com/Kentalot/jira-beads-sync/issues
 - **Examples**: [EXAMPLES.md](EXAMPLES.md)

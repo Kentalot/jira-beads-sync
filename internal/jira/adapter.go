@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	pb "github.com/conallob/jira-beads-sync/gen/jira"
+	pb "github.com/Kentalot/jira-beads-sync/gen/jira"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

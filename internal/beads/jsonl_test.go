@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/conallob/jira-beads-sync/gen/beads"
+	pb "github.com/Kentalot/jira-beads-sync/gen/beads"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
