@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"encoding/json"
 	"testing"
 
 	pb "github.com/conallob/jira-beads-sync/gen/jira"
@@ -205,5 +206,20 @@ func TestAdapterConvertParent(t *testing.T) {
 		if proj2.Fields.Parent.Fields.IssueType.Name != "Epic" {
 			t.Errorf("Expected parent to be Epic, got %s", proj2.Fields.Parent.Fields.IssueType.Name)
 		}
+	}
+}
+
+func TestPlainDescriptionFromRaw(t *testing.T) {
+	if got := plainDescriptionFromRaw(nil); got != "" {
+		t.Fatalf("nil: got %q", got)
+	}
+	if got := plainDescriptionFromRaw(json.RawMessage(`null`)); got != "" {
+		t.Fatalf("null: got %q", got)
+	}
+	if got := plainDescriptionFromRaw(json.RawMessage(`"hello"`)); got != "hello" {
+		t.Fatalf("string: got %q", got)
+	}
+	if got := plainDescriptionFromRaw(json.RawMessage(`{"type":"doc"}`)); got != "" {
+		t.Fatalf("adf: want empty, got %q", got)
 	}
 }

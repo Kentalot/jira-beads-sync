@@ -159,6 +159,12 @@ jira-beads-sync sync PROJ-123 PROJ-456
 
 **Note:** Sync mode is under active development. Some features may be limited in the current release.
 
+**Limitations (current release):**
+- Sync applies to **`.beads/issues.jsonl` only** (issues imported via `quickstart` / `fetch-by-label` / `fetch-jql`). Epics in `.beads/epics.jsonl` are not pushed back to Jira yet.
+- Status changes use Jira **workflow transitions**. The tool picks a transition whose destination status maps to your beads status (`open`, `in_progress`, `blocked`, `closed`). If no such transition exists from the issue’s current state, sync reports an error for that issue.
+- If Jira returns descriptions as **Atlassian Document Format (ADF)** JSON, the importer may treat the description as empty for comparison; updating description from beads may replace rich text with plain text or fail depending on your Jira configuration.
+- Assignee updates resolve the beads assignee string via **`GET /rest/api/3/user/search`** (use the user’s email when possible for an exact match).
+
 ### convert
 
 One-way conversion of previously exported Jira JSON files to beads format. Use this for archived projects or when API access is not available.

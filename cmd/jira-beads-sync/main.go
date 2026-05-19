@@ -9,6 +9,7 @@ import (
 	"github.com/conallob/jira-beads-sync/internal/config"
 	"github.com/conallob/jira-beads-sync/internal/converter"
 	"github.com/conallob/jira-beads-sync/internal/jira"
+	"github.com/conallob/jira-beads-sync/internal/sync"
 )
 
 // Build-time variables injected via ldflags by goreleaser
@@ -81,6 +82,11 @@ func main() {
 		}
 	case "configure", "config":
 		if err := runConfigure(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	case "sync":
+		if err := runSync(os.Args[2:]); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -190,6 +196,37 @@ func runQuickstart(urlOrKey string) error {
 	fmt.Printf("  %d issue(s) written to %s/.beads/issues.jsonl\n", len(beadsExport.Issues), outputDir)
 
 	return nil
+}
+
+func runSync(issueKeys []string) error {
+	fmt.Println("jira-beads-sync sync")
+	fmt.Println("====================")
+	fmt.Println()
+
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("no configuration found. Run 'jira-beads-sync configure' first: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid configuration: %w. Run 'jira-beads-sync configure' to fix", err)
+	}
+
+	outputDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	issuesPath := beads.IssuesJSONLPath(outputDir)
+	issues, err := beads.LoadIssuesJSONL(issuesPath)
+	if err != nil {
+		return fmt.Errorf("load beads issues from %s: %w", issuesPath, err)
+	}
+	if len(issues) == 0 {
+		return fmt.Errorf("no issues found in %s", issuesPath)
+	}
+
+	client := jira.NewClient(cfg.Jira.BaseURL, cfg.Jira.Username, cfg.Jira.APIToken, cfg.Jira.AuthMethod)
+	return sync.Run(client, issues, issueKeys)
 }
 
 func runConfigure() error {
@@ -430,6 +467,7 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  jira-beads-sync quickstart <jira-url>         Fetch issue from Jira and convert to beads")
+	fmt.Println("  jira-beads-sync sync [issue-keys...]           Push beads changes to Jira for issues in .beads/issues.jsonl")
 	fmt.Println("  jira-beads-sync fetch-by-label <label>        Fetch all issues with label from Jira")
 	fmt.Println("  jira-beads-sync fetch-jql <jql-query>         Fetch issues matching JQL query from Jira")
 	fmt.Println("  jira-beads-sync annotate <issue-id> <repo>    Annotate issue with repository info")
@@ -442,6 +480,7 @@ func printUsage() {
 	fmt.Println("Examples:")
 	fmt.Println("  jira-beads-sync quickstart https://jira.example.com/browse/PROJ-123")
 	fmt.Println("  jira-beads-sync quickstart PROJ-123")
+	fmt.Println("  jira-beads-sync sync PROJ-123 PROJ-456        Sync only the listed Jira keys")
 	fmt.Println("  jira-beads-sync fetch-by-label sprint-23")
 	fmt.Println("  jira-beads-sync fetch-jql 'project = MYPROJ AND assignee = currentUser() AND status IN (\"READY TO START\", \"In Progress\")'")
 	fmt.Println("  jira-beads-sync fetch-jql 'project = MYPROJ AND sprint = 42'")

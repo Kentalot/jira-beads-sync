@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	pb "github.com/conallob/jira-beads-sync/gen/jira"
 )
@@ -33,7 +34,7 @@ func NewClient(baseURL, username, apiToken, authMethod string) *Client {
 
 	return &Client{
 		baseURL:    strings.TrimSuffix(baseURL, "/"),
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: 60 * time.Second},
 		username:   username,
 		apiToken:   apiToken,
 		authMethod: authMethod,
@@ -53,6 +54,9 @@ func (c *Client) setAuthHeader(req *http.Request) {
 
 // FetchIssue fetches a single issue by key (e.g., "PROJ-123")
 func (c *Client) FetchIssue(issueKey string) (*pb.Issue, error) {
+	if err := ValidateIssueKey(issueKey); err != nil {
+		return nil, err
+	}
 	apiURL := fmt.Sprintf("%s/rest/api/2/issue/%s", c.baseURL, issueKey)
 
 	req, err := http.NewRequest("GET", apiURL, nil)

@@ -87,7 +87,7 @@ func (a *Adapter) convertIssue(jsonIssue *jsonIssue) (*pb.Issue, error) {
 		Self: jsonIssue.Self,
 		Fields: &pb.Fields{
 			Summary:     jsonIssue.Fields.Summary,
-			Description: jsonIssue.Fields.Description,
+			Description: plainDescriptionFromRaw(jsonIssue.Fields.Description),
 			IssueType: &pb.IssueType{
 				Name:        jsonIssue.Fields.IssueType.Name,
 				Description: jsonIssue.Fields.IssueType.Description,
@@ -269,6 +269,19 @@ func (a *Adapter) convertParent(parent *jsonParent) *pb.Parent {
 	}
 }
 
+// plainDescriptionFromRaw extracts a plain-text description from Jira JSON.
+// Jira may return a string or an Atlassian Document Format (ADF) object; ADF is not converted here.
+func plainDescriptionFromRaw(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return ""
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	return ""
+}
+
 // JSON types for unmarshaling (kept internal)
 type jsonExport struct {
 	Issues []jsonIssue `json:"issues"`
@@ -283,7 +296,7 @@ type jsonIssue struct {
 
 type jsonFields struct {
 	Summary     string          `json:"summary"`
-	Description string          `json:"description"`
+	Description json.RawMessage `json:"description"`
 	IssueType   jsonIssueType   `json:"issuetype"`
 	Status      jsonStatus      `json:"status"`
 	Priority    jsonPriority    `json:"priority"`

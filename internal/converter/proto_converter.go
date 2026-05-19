@@ -273,3 +273,45 @@ func (c *ProtoConverter) getDependencies(export *jirapb.Export) map[string][]str
 
 	return dependencies
 }
+
+func statusEnumToString(s beadspb.Status) string {
+	switch s {
+	case beadspb.Status_STATUS_OPEN:
+		return "open"
+	case beadspb.Status_STATUS_IN_PROGRESS:
+		return "in_progress"
+	case beadspb.Status_STATUS_BLOCKED:
+		return "blocked"
+	case beadspb.Status_STATUS_CLOSED:
+		return "closed"
+	default:
+		return "open"
+	}
+}
+
+func priorityEnumToRank(p beadspb.Priority) int {
+	switch p {
+	case beadspb.Priority_PRIORITY_P0:
+		return 0
+	case beadspb.Priority_PRIORITY_P1:
+		return 1
+	case beadspb.Priority_PRIORITY_P2:
+		return 2
+	case beadspb.Priority_PRIORITY_P3:
+		return 3
+	case beadspb.Priority_PRIORITY_P4:
+		return 4
+	default:
+		return 2
+	}
+}
+
+// BeadsStatusStringFromJira maps Jira status to the beads status string used in JSONL ("open", "in_progress", ...).
+func (c *ProtoConverter) BeadsStatusStringFromJira(st *jirapb.Status) string {
+	return statusEnumToString(c.mapStatus(st))
+}
+
+// BeadsPriorityRankFromJira maps Jira priority to the integer rank stored in beads JSONL (0–4).
+func (c *ProtoConverter) BeadsPriorityRankFromJira(pr *jirapb.Priority) int {
+	return priorityEnumToRank(c.mapPriority(pr))
+}
