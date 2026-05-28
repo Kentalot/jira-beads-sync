@@ -112,8 +112,8 @@ type BeadsIssue struct {
 	DependsOn   []string `json:"dependsOn,omitempty"`
 	Created     string   `json:"created,omitempty"`
 	Updated     string   `json:"updated,omitempty"`
-	// Metadata may include jiraKey, jiraId, repositories (from annotate), jiraPendingComment,
-	// gitCommit, gitCommitUrl, jiraLastPostedCommentFingerprint (set by sync after posting) — see docs/CLI_GUIDE.md sync section.
+	// Metadata may include jiraKey, jiraId, repositories (from annotate), jiraPostedCommentIds (set by sync)
+	// — see docs/CLI_GUIDE.md sync section.
 	Metadata map[string]string `json:"metadata,omitempty"`
 	// ExternalRef is set by some beads deployments (e.g. "jira-PROJ-123") when metadata.jiraKey is absent.
 	ExternalRef string `json:"external_ref,omitempty"`

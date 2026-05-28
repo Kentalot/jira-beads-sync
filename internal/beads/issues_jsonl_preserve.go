@@ -93,23 +93,11 @@ func LoadIssuesJSONLinesPreserve(path string) ([]IssueJSONLLine, error) {
 
 // syncIssueMetadataToRaw writes issue.Metadata into raw["metadata"], starting from any
 // existing metadata object in raw so unknown keys and non-string JSON values are kept.
-// Keys jiraPendingComment, gitCommit, gitCommitUrl are removed from the stored metadata
-// unless they are still present on issue.Metadata.
 func syncIssueMetadataToRaw(raw map[string]json.RawMessage, issue BeadsIssue) error {
 	meta := make(map[string]json.RawMessage)
 	if mr, ok := raw["metadata"]; ok && len(mr) > 0 && string(bytes.TrimSpace(mr)) != "null" {
 		if err := json.Unmarshal(mr, &meta); err != nil {
 			return fmt.Errorf("metadata object: %w", err)
-		}
-	}
-	trio := []string{"jiraPendingComment", "gitCommit", "gitCommitUrl"}
-	for _, k := range trio {
-		if issue.Metadata == nil {
-			delete(meta, k)
-			continue
-		}
-		if _, ok := issue.Metadata[k]; !ok {
-			delete(meta, k)
 		}
 	}
 	if issue.Metadata != nil {
@@ -119,6 +107,19 @@ func syncIssueMetadataToRaw(raw map[string]json.RawMessage, issue BeadsIssue) er
 				return fmt.Errorf("metadata %q: %w", k, err)
 			}
 			meta[k] = b
+		}
+	}
+	for k, v := range meta {
+		var s string
+		if err := json.Unmarshal(v, &s); err != nil {
+			continue
+		}
+		if issue.Metadata == nil {
+			delete(meta, k)
+			continue
+		}
+		if _, ok := issue.Metadata[k]; !ok {
+			delete(meta, k)
 		}
 	}
 	if len(meta) == 0 {

@@ -120,27 +120,24 @@ jira-beads-sync sync [issue-keys...]
 ```
 
 **Arguments:**
-- `[issue-keys...]`: Optional list of specific issue keys to sync (e.g., `PROJ-123 PROJ-456`). When provided, branch-based narrowing (below) is **not** applied.
-- If no keys are provided:
-  - The tool reads the current git branch (`git rev-parse --abbrev-ref HEAD`). For each issue in `.beads/issues.jsonl` with a Jira mapping (`metadata.jiraKey` or `external_ref` like `jira-PROJ-123`), it checks whether the **branch name contains that Jira key as its own token** (e.g. `feature/PROJ-123-fix` matches `PROJ-123`; `feature/PROJ-1234` does **not** match `PROJ-123`).
-  - If a match is found, sync runs **only for that issue**. It sets `metadata.jiraPendingComment` from the latest commit message (`git log -1 --pretty=%B`, falling back to `%s`), sets `metadata.gitCommitUrl` when a URL can be built from `git remote get-url origin` and the current commit SHA, and uses `GITHUB_SHA`, then `CI_COMMIT_SHA`, then `git rev-parse HEAD` for the SHA when composing the comment (same as before, without a CLI flag).
-  - If **no** mapped key from the file appears in the branch name, sync runs for **all** mapped issues in `.beads/issues.jsonl` (same as listing no keys on a branch like `main` that does not contain a ticket key).
+- `[issue-keys...]`: Optional list of specific issue keys to sync (e.g., `PROJ-123 PROJ-456`). When omitted, sync runs for **all** mapped issues in `.beads/issues.jsonl`.
 
 **What it does:**
-1. Loads `.beads/issues.jsonl` from the current directory (and may narrow to one issue and queue a commit comment as above).
+1. Loads `.beads/issues.jsonl` from the current directory.
 2. For each mapped issue selected for sync, fetches current Jira state and compares beads fields.
-3. If `metadata.jiraPendingComment` is set, posts that text as a **Jira issue comment** (not as the description) **before** other Jira field updates or transitions, including when the Jira issue is already **closed** (so follow-up notes are not skipped if later steps fail). Then **removes** `jiraPendingComment`, `gitCommit`, and `gitCommitUrl`, sets `metadata.jiraLastPostedCommentFingerprint` to the SHA-256 (hex) of the posted body, and **rewrites `issues.jsonl` immediately** so a later disk failure cannot leave a stale queue that would duplicate the comment on retry.
+3. **Native beads comments** (`bd comment` / `bd comments add`): loads comments from the `comments` array on each issues.jsonl line (when present) or via `bd comments <id> --json` in the repo. Eligible comments are posted as Jira issue comments and their beads comment IDs are recorded in `metadata.jiraPostedCommentIds` so they are **never posted twice**. Default policy (`tagged`): only comments whose text contains `#jira` are pushed; the tag is stripped from the Jira body. Set `jira.sync_beads_comments_policy: all` (or `JIRA_SYNC_BEADS_COMMENTS=all`) to push every new beads comment; `off` disables this path. After posting, **`issues.jsonl` is rewritten immediately** so a disk failure cannot leave unrecorded IDs that would duplicate on retry.
 4. Updates Jira via REST API (summary, description when safe, priority, assignee, status transitions).
-5. If the same pending body is queued again but its fingerprint still matches `jiraLastPostedCommentFingerprint`, sync **clears the queue without posting** (recovery from a partial run or mistaken re-queue).
-6. Comment API: tries `POST /rest/api/2/issue/{key}/comment` with a plain string body; if that fails (common on some Jira Cloud setups), retries with `POST /rest/api/3/issue/{key}/comment` using minimal Atlassian Document Format (ADF)
+5. Comment API: tries `POST /rest/api/2/issue/{key}/comment` with a plain string body; if that fails (common on some Jira Cloud setups), retries with `POST /rest/api/3/issue/{key}/comment` using minimal Atlassian Document Format (ADF)
 
 **Native beads JSONL:** lines may include extra top-level keys (`_type`, `created_at`, `close_reason`, etc.) and non-string values inside `metadata`. Sync **preserves** those on save; only string entries in `metadata` are mirrored into the fields this tool reads.
 
-**Queued Jira comment (metadata on the beads issue):**
-- `jiraPendingComment` — body text to post on the next successful sync (required to trigger a comment)
-- `gitCommitUrl` — if set, this URL is appended after the comment text (skips auto link construction). For GitHub-style hosts this is `https://github.com/<org>/<repo>/commit/<sha>`. Branch-scoped sync sets this from `git remote get-url origin` when possible, appending `/commit/<sha>` to the normalized HTTPS repo root.
-- `gitCommit` — optional SHA; with `metadata.repositories` (from `jira-beads-sync annotate`), the tool appends a link: first comma-separated HTTPS URL that looks like **GitHub** gets `/commit/<sha>`. `GITHUB_SHA` / `CI_COMMIT_SHA` / local `git rev-parse HEAD` override `gitCommit` from metadata for that link line only when `gitCommitUrl` is not set.
-- `jiraLastPostedCommentFingerprint` — set automatically after a successful comment; used to avoid posting the same body twice if the queue was re-added by mistake.
+**Sync metadata (on the beads issue):**
+- `jiraPostedCommentIds` — comma-separated beads comment IDs already posted to Jira (managed by sync; do not edit unless recovering from a partial run).
+
+**Beads comments → Jira (opt-in):**
+- Add `#jira` anywhere in the beads comment text (e.g. `bd comment bd-abc "Fix verified #jira"`).
+- On sync, the comment is posted to the mapped Jira issue; `#jira` is removed from the Jira text; author is prefixed as `[Author] …` when present.
+- Config `jira.sync_beads_comments_policy` (or env `JIRA_SYNC_BEADS_COMMENTS`): `tagged` (default), `all`, or `off`.
 
 **Description behavior:**
 - If Jira’s description is **ADF / rich text** that we cannot parse to plain text, sync **never overwrites** the Jira description (avoids wiping rich descriptions when beads only has a short plain-text delta). A warning is printed for that issue.
@@ -148,7 +145,7 @@ jira-beads-sync sync [issue-keys...]
 
 **Examples:**
 
-Sync all mapped issues (or only the ticket named in the current branch — see above):
+Sync all mapped issues:
 ```bash
 jira-beads-sync sync
 ```

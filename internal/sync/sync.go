@@ -1,8 +1,7 @@
 package sync
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -13,19 +12,13 @@ import (
 	"github.com/Kentalot/jira-beads-sync/internal/jira"
 )
 
-// Metadata keys for queued Jira comments (see docs/CLI_GUIDE.md).
-const (
-	metaJiraPendingComment      = "jiraPendingComment"
-	metaGitCommit               = "gitCommit"
-	metaGitCommitURL            = "gitCommitUrl"
-	metaRepositories            = "repositories"
-	metaJiraLastPostedCommentFP = "jiraLastPostedCommentFingerprint"
-)
-
-// RunOptions configures sync (description policy, optional git SHA for commit URLs).
+// RunOptions configures sync (description policy, beads comments → Jira).
 type RunOptions struct {
-	DescPolicy   string // "replace" or "skip"
-	GitCommitSHA string // optional; also read from issue metadata when empty
+	DescPolicy          string // "replace" or "skip"
+	WorkDir             string // repo root for `bd comments` when issues.jsonl lacks comments
+	BeadsCommentsPolicy string // "tagged" (#jira), "all", or "off"
+	// ListBeadsComments overrides comment loading (for tests).
+	ListBeadsComments func(issueID string, raw map[string]json.RawMessage) ([]beads.Comment, error)
 }
 
 // Run loads issuesPath and delegates to RunWithLines.
@@ -40,8 +33,8 @@ func Run(client *jira.Client, issuesPath string, filterKeys []string, opts RunOp
 // RunWithLines pushes beads issue changes to Jira for issues in lines (from .beads/issues.jsonl)
 // that carry metadata.jiraKey or external_ref in the form "jira-KEY".
 // filterKeys, if non-empty, limits sync to those Jira keys (case-insensitive, e.g. PROJ-123).
-// After a Jira comment is posted (or deduped), issues.jsonl is saved immediately so a disk
-// failure cannot leave a queued comment that would duplicate on retry.
+// After beads comments are posted to Jira, issues.jsonl is saved immediately so a disk
+// failure cannot leave unrecorded comment IDs that would duplicate on retry.
 func RunWithLines(client *jira.Client, issuesPath string, lines []beads.IssueJSONLLine, filterKeys []string, opts RunOptions) error {
 	filter := normalizeKeySet(filterKeys)
 
@@ -83,7 +76,7 @@ func RunWithLines(client *jira.Client, issuesPath string, lines []beads.IssueJSO
 		}
 
 		fmt.Printf("sync %s -> %s ...\n", issue.ID, jkeyUpper)
-		changed, rowDirty, err := syncOne(client, pc, issue, jkeyUpper, opts)
+		changed, rowDirty, err := syncOne(client, pc, issue, lines[i].Raw, jkeyUpper, opts)
 		if err != nil {
 			fmt.Printf("  error: %v\n", err)
 			failed++
@@ -91,7 +84,7 @@ func RunWithLines(client *jira.Client, issuesPath string, lines []beads.IssueJSO
 		}
 		if rowDirty {
 			if saveErr := beads.SaveIssuesJSONLinesPreserve(issuesPath, lines); saveErr != nil {
-				return fmt.Errorf("issue %s: Jira comment was processed but saving %s failed (retry may duplicate a Jira comment; remove metadata.jiraPendingComment manually if needed): %w", issue.ID, issuesPath, saveErr)
+				return fmt.Errorf("issue %s: Jira comments were processed but saving %s failed (retry may duplicate Jira comments; check metadata.jiraPostedCommentIds): %w", issue.ID, issuesPath, saveErr)
 			}
 		}
 		if !changed {
@@ -189,94 +182,18 @@ func localAssigneeForJira(issue *beads.BeadsIssue) string {
 	return a
 }
 
-func buildPendingCommentBody(meta map[string]string, envSHA string) string {
-	if meta == nil {
-		return ""
-	}
-	msg := strings.TrimSpace(meta[metaJiraPendingComment])
-	if msg == "" {
-		return ""
-	}
-	sha := strings.TrimSpace(envSHA)
-	if sha == "" {
-		sha = strings.TrimSpace(meta[metaGitCommit])
-	}
-	link := strings.TrimSpace(meta[metaGitCommitURL])
-	if link == "" && sha != "" {
-		link = commitURLFromRepos(meta[metaRepositories], sha)
-	}
-	if link != "" {
-		msg = msg + "\n\n" + link
-	}
-	return msg
-}
-
-func commitURLFromRepos(reposCSV, sha string) string {
-	sha = strings.TrimSpace(sha)
-	if sha == "" {
-		return ""
-	}
-	for _, raw := range strings.Split(reposCSV, ",") {
-		base := normalizeRepoBase(strings.TrimSpace(raw))
-		if base != "" {
-			return strings.TrimSuffix(base, "/") + "/commit/" + sha
-		}
-	}
-	return ""
-}
-
-func normalizeRepoBase(repo string) string {
-	repo = strings.TrimSpace(repo)
-	if repo == "" {
-		return ""
-	}
-	low := strings.ToLower(repo)
-
-	const gh = "git@github.com:"
-	if len(repo) >= len(gh) && low[:len(gh)] == gh {
-		return "https://github.com/" + trimGitSuffix(repo[len(gh):])
-	}
-	if strings.Contains(low, "github.com/") {
-		return trimGitSuffix(repo)
-	}
-	return ""
-}
-
-func trimGitSuffix(s string) string {
-	s = strings.TrimSuffix(s, "/")
-	return strings.TrimSuffix(s, ".git")
-}
-
-func commentBodyFingerprint(body string) string {
-	h := sha256.Sum256([]byte(body))
-	return hex.EncodeToString(h[:])
-}
-
-func clearPendingJiraQueueMetadata(issue *beads.BeadsIssue) {
-	if issue.Metadata == nil {
-		return
-	}
-	delete(issue.Metadata, metaJiraPendingComment)
-	delete(issue.Metadata, metaGitCommit)
-	delete(issue.Metadata, metaGitCommitURL)
-}
-
-func applyAfterSuccessfulJiraComment(issue *beads.BeadsIssue, postedBody string) {
-	clearPendingJiraQueueMetadata(issue)
-	if issue.Metadata == nil {
-		issue.Metadata = make(map[string]string)
-	}
-	issue.Metadata[metaJiraLastPostedCommentFP] = commentBodyFingerprint(postedBody)
-}
-
-func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.BeadsIssue, jiraKey string, opts RunOptions) (changed bool, jsonlDirty bool, err error) {
+func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.BeadsIssue, raw map[string]json.RawMessage, jiraKey string, opts RunOptions) (changed bool, jsonlDirty bool, err error) {
 	fetched, err := client.FetchIssueWithHints(jiraKey)
 	if err != nil {
 		return false, false, err
 	}
 	remote := fetched.Issue
 
-	pendingBody := buildPendingCommentBody(local.Metadata, opts.GitCommitSHA)
+	comments, commentsErr := listBeadsCommentsForIssue(opts, local.ID, raw)
+	if commentsErr != nil {
+		return false, false, commentsErr
+	}
+	beadsToPost := selectBeadsCommentsForJira(comments, parsePostedCommentIDSet(local.Metadata), opts.BeadsCommentsPolicy)
 
 	wantStatus := strings.TrimSpace(local.Status)
 	if wantStatus == "" {
@@ -305,27 +222,15 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 		}
 	}
 
-	if !titleChanged && !mayPushDescription && !statusChanged && !prioChanged && !assigneeChanged && pendingBody == "" {
+	if !titleChanged && !mayPushDescription && !statusChanged && !prioChanged && !assigneeChanged && len(beadsToPost) == 0 {
 		return false, false, nil
 	}
 
-	// Post queued Jira comment first (even when the issue is already closed in Jira) so a
-	// follow-up note is not skipped if later steps error.
-	if pendingBody != "" {
-		fp := commentBodyFingerprint(pendingBody)
-		if local.Metadata != nil && local.Metadata[metaJiraLastPostedCommentFP] == fp {
-			fmt.Printf("  skipping Jira comment (same content as last posted fingerprint); clearing queued metadata\n")
-			clearPendingJiraQueueMetadata(local)
-			changed = true
-			jsonlDirty = true
-		} else {
-			if err := client.AddIssueComment(jiraKey, pendingBody); err != nil {
-				return false, false, err
-			}
-			applyAfterSuccessfulJiraComment(local, pendingBody)
-			changed = true
-			jsonlDirty = true
-		}
+	if beadsChanged, err := postBeadsCommentsToJira(client, local, jiraKey, beadsToPost); err != nil {
+		return changed, jsonlDirty, err
+	} else if beadsChanged {
+		changed = true
+		jsonlDirty = true
 	}
 
 	fields := map[string]any{}

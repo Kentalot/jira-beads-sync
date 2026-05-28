@@ -24,6 +24,9 @@ type JiraConfig struct {
 	// updates when safe; "skip" never updates description. Rich-text / ADF remotes are never
 	// overwritten unless we can round-trip (we skip automatically when detected).
 	SyncDescriptionPolicy string `yaml:"sync_description_policy,omitempty"`
+	// SyncBeadsCommentsPolicy controls native beads comments → Jira: "tagged" (#jira, default),
+	// "all" (every new comment by ID), or "off".
+	SyncBeadsCommentsPolicy string `yaml:"sync_beads_comments_policy,omitempty"`
 }
 
 // configPathFunc is a variable that can be overridden in tests
@@ -56,6 +59,9 @@ func Load() (*Config, error) {
 	}
 	if syncDesc := os.Getenv("JIRA_SYNC_DESCRIPTION_POLICY"); syncDesc != "" {
 		config.Jira.SyncDescriptionPolicy = syncDesc
+	}
+	if beadsComments := os.Getenv("JIRA_SYNC_BEADS_COMMENTS"); beadsComments != "" {
+		config.Jira.SyncBeadsCommentsPolicy = beadsComments
 	}
 
 	// Default to basic auth if not specified
@@ -100,6 +106,11 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("jira sync_description_policy must be 'replace' or 'skip', got: %s", c.Jira.SyncDescriptionPolicy)
 	}
 
+	bc := strings.ToLower(strings.TrimSpace(c.Jira.SyncBeadsCommentsPolicy))
+	if bc != "" && bc != "tagged" && bc != "all" && bc != "off" {
+		return fmt.Errorf("jira sync_beads_comments_policy must be 'tagged', 'all', or 'off', got: %s", c.Jira.SyncBeadsCommentsPolicy)
+	}
+
 	return nil
 }
 
@@ -110,6 +121,17 @@ func (c *Config) SyncDescriptionPolicy() string {
 		return "skip"
 	}
 	return "replace"
+}
+
+// SyncBeadsCommentsPolicy returns tagged, all, or off (default tagged).
+func (c *Config) SyncBeadsCommentsPolicy() string {
+	p := strings.ToLower(strings.TrimSpace(c.Jira.SyncBeadsCommentsPolicy))
+	switch p {
+	case "all", "off":
+		return p
+	default:
+		return "tagged"
+	}
 }
 
 // Save saves the configuration to a file

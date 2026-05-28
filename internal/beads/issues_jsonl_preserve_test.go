@@ -9,12 +9,12 @@ import (
 )
 
 func TestParseIssueJSONLLineSkipsNonStringMetadata(t *testing.T) {
-	const line = `{"id":"x","title":"t","status":"open","metadata":{"jiraPendingComment":"hi","count":42}}`
+	const line = `{"id":"x","title":"t","status":"open","metadata":{"syncNote":"hi","count":42}}`
 	l, err := parseIssueJSONLLine([]byte(line))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if l.Issue.Metadata["jiraPendingComment"] != "hi" {
+	if l.Issue.Metadata["syncNote"] != "hi" {
 		t.Fatalf("%v", l.Issue.Metadata)
 	}
 	if _, ok := l.Issue.Metadata["count"]; ok {
@@ -30,7 +30,7 @@ func TestParseIssueJSONLLineSkipsNonStringMetadata(t *testing.T) {
 }
 
 func TestSaveIssuesJSONLinesPreserveKeepsNativeTopLevelKeys(t *testing.T) {
-	const original = `{"_type":"issue","id":"a","title":"t","status":"open","close_reason":"done","metadata":{"jiraKey":"K-1","jiraPendingComment":"n"}}` + "\n"
+	const original = `{"_type":"issue","id":"a","title":"t","status":"open","close_reason":"done","metadata":{"jiraKey":"K-1","extra":"n"}}` + "\n"
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "issues.jsonl")
 	if err := os.WriteFile(path, []byte(original), 0644); err != nil {
@@ -40,9 +40,7 @@ func TestSaveIssuesJSONLinesPreserveKeepsNativeTopLevelKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	delete(lines[0].Issue.Metadata, "jiraPendingComment")
-	delete(lines[0].Issue.Metadata, "gitCommit")
-	delete(lines[0].Issue.Metadata, "gitCommitUrl")
+	delete(lines[0].Issue.Metadata, "extra")
 	if err := SaveIssuesJSONLinesPreserve(path, lines); err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +52,7 @@ func TestSaveIssuesJSONLinesPreserveKeepsNativeTopLevelKeys(t *testing.T) {
 	if !strings.Contains(s, `"_type"`) || !strings.Contains(s, `"close_reason"`) {
 		t.Fatalf("lost native keys: %s", s)
 	}
-	if strings.Contains(s, `"jiraPendingComment"`) {
-		t.Fatalf("pending should be stripped: %s", s)
+	if strings.Contains(s, `"extra"`) {
+		t.Fatalf("removed metadata key should be gone: %s", s)
 	}
 }

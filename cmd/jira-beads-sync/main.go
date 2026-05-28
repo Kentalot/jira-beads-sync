@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/Kentalot/jira-beads-sync/internal/beads"
@@ -228,38 +227,19 @@ func runSync(rawArgs []string) error {
 
 	client := jira.NewClient(cfg.Jira.BaseURL, cfg.Jira.Username, cfg.Jira.APIToken, cfg.Jira.AuthMethod)
 	opts := sync.RunOptions{
-		DescPolicy: cfg.SyncDescriptionPolicy(),
-	}
-	if s := os.Getenv("GITHUB_SHA"); s != "" {
-		opts.GitCommitSHA = s
-	} else if s := os.Getenv("CI_COMMIT_SHA"); s != "" {
-		opts.GitCommitSHA = s
-	} else if s := gitRevParseHead(outputDir); s != "" {
-		opts.GitCommitSHA = s
+		DescPolicy:          cfg.SyncDescriptionPolicy(),
+		WorkDir:             outputDir,
+		BeadsCommentsPolicy: cfg.SyncBeadsCommentsPolicy(),
 	}
 
-	filterKeys := sync.ApplyBranchScopedGitPending(outputDir, lines, issueKeys, &opts)
-	if len(issueKeys) == 0 && len(filterKeys) > 0 {
-		fmt.Printf("Current git branch matches %s; syncing that issue only (pending Jira comment from last commit).\n", filterKeys[0])
-	}
-
-	return sync.RunWithLines(client, issuesPath, lines, filterKeys, opts)
-}
-
-// gitRevParseHead returns the current HEAD commit in workDir, or "" if unavailable.
-func gitRevParseHead(workDir string) string {
-	out, err := exec.Command("git", "-C", workDir, "rev-parse", "HEAD").Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
+	return sync.RunWithLines(client, issuesPath, lines, issueKeys, opts)
 }
 
 func parseSyncArgs(args []string) (issueKeys []string) {
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if a == "--git-commit" {
-			fmt.Fprintf(os.Stderr, "warning: --git-commit was removed; commit links use GITHUB_SHA, CI_COMMIT_SHA, or git HEAD (see CLI guide)\n")
+			fmt.Fprintf(os.Stderr, "warning: --git-commit is no longer supported; use bd comment with #jira and jira-beads-sync sync\n")
 			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 				i++
 			}
@@ -511,7 +491,7 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  jira-beads-sync quickstart <jira-url>         Fetch issue from Jira and convert to beads")
-	fmt.Println("  jira-beads-sync sync [issue-keys...]   Push beads changes to Jira; with no keys, if the git branch name contains a Jira key from issues.jsonl, syncs only that issue and queues a Jira comment from the latest commit")
+	fmt.Println("  jira-beads-sync sync [issue-keys...]   Push beads changes to Jira (beads comments with #jira → Jira comments)")
 	fmt.Println("  jira-beads-sync fetch-by-label <label>        Fetch all issues with label from Jira")
 	fmt.Println("  jira-beads-sync fetch-jql <jql-query>         Fetch issues matching JQL query from Jira")
 	fmt.Println("  jira-beads-sync annotate <issue-id> <repo>    Annotate issue with repository info")
