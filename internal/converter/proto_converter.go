@@ -6,12 +6,14 @@ import (
 
 	beadspb "github.com/Kentalot/jira-beads-sync/gen/beads"
 	jirapb "github.com/Kentalot/jira-beads-sync/gen/jira"
+	jirasync "github.com/Kentalot/jira-beads-sync/internal/jira"
 )
 
 // ProtoConverter handles converting Jira protobuf to beads protobuf
 type ProtoConverter struct {
-	issueMap map[string]*jirapb.Issue // Map of Jira keys to issues
-	epicMap  map[string]string        // Map of Jira epic keys to beads epic IDs
+	issueMap            map[string]*jirapb.Issue // Map of Jira keys to issues
+	epicMap             map[string]string      // Map of Jira epic keys to beads epic IDs
+	attachmentManifests map[string]jirasync.IssueAttachmentManifest
 }
 
 // NewProtoConverter creates a new protobuf-based converter
@@ -22,11 +24,16 @@ func NewProtoConverter() *ProtoConverter {
 	}
 }
 
-// Convert converts a Jira export to beads format
-func (c *ProtoConverter) Convert(jiraExport *jirapb.Export) (*beadspb.Export, error) {
+// Convert converts a Jira export to beads format. attachmentManifests may be nil.
+func (c *ProtoConverter) Convert(
+	jiraExport *jirapb.Export,
+	attachmentManifests map[string]jirasync.IssueAttachmentManifest,
+) (*beadspb.Export, error) {
 	if jiraExport == nil {
 		return nil, fmt.Errorf("jira export is nil")
 	}
+
+	c.attachmentManifests = attachmentManifests
 
 	// Build issue map for quick lookups
 	c.issueMap = c.buildIssueMap(jiraExport)
@@ -134,7 +141,27 @@ func (c *ProtoConverter) convertIssue(jiraIssue *jirapb.Issue) (*beadspb.Issue, 
 		}
 	}
 
+	if c.attachmentManifests != nil {
+		if manifest, ok := c.attachmentManifests[jiraIssue.Key]; ok {
+			applyAttachmentMetadata(issue, manifest)
+		}
+	}
+
 	return issue, nil
+}
+
+func applyAttachmentMetadata(issue *beadspb.Issue, manifest jirasync.IssueAttachmentManifest) {
+	if len(manifest.Filenames) == 0 || manifest.RelativeDir == "" {
+		return
+	}
+	if issue.Metadata == nil {
+		issue.Metadata = &beadspb.Metadata{}
+	}
+	if issue.Metadata.Custom == nil {
+		issue.Metadata.Custom = make(map[string]string)
+	}
+	issue.Metadata.Custom[jirasync.MetadataKeyAttachmentsDir] = manifest.RelativeDir
+	issue.Metadata.Custom[jirasync.MetadataKeyAttachments] = strings.Join(manifest.Filenames, ",")
 }
 
 // addDependencies adds dependency relationships from Jira issue links

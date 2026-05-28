@@ -342,7 +342,7 @@ func TestProtoConvertIssue(t *testing.T) {
 
 func TestProtoConvertNilExport(t *testing.T) {
 	conv := NewProtoConverter()
-	_, err := conv.Convert(nil)
+	_, err := conv.Convert(nil, nil)
 	if err == nil {
 		t.Error("Expected error for nil export, got nil")
 	}

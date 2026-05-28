@@ -32,7 +32,7 @@ func (p *Pipeline) ConvertFile(jiraFile string) error {
 	}
 
 	// Step 2: Convert Jira protobuf to beads protobuf
-	beadsExport, err := p.converter.Convert(jiraExport)
+	beadsExport, err := p.converter.Convert(jiraExport, nil)
 	if err != nil {
 		return fmt.Errorf("failed to convert to beads format: %w", err)
 	}

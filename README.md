@@ -34,7 +34,7 @@ Perfect for developers who want to:
 ## What Does It Do?
 
 ```bash
-# Import a Jira issue with all its dependencies
+# Import a Jira issue with all its dependencies (attachments -> .beads/jira-attachments/PROJ-123/)
 jira-beads-sync quickstart PROJ-123
 
 # Work locally with beads

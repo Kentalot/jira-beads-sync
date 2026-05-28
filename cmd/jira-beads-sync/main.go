@@ -163,27 +163,46 @@ func runQuickstart(urlOrKey string) error {
 
 	// Fetch issue and dependencies
 	fmt.Printf("Fetching %s and its dependencies...\n", issueKey)
-	jiraExport, err := client.FetchIssueWithDependencies(issueKey)
+	fetch, err := client.FetchIssueWithDependencies(issueKey)
 	if err != nil {
 		return fmt.Errorf("failed to fetch issues: %w", err)
 	}
 
-	fmt.Printf("\n✓ Fetched %d issue(s)\n\n", len(jiraExport.Issues))
-
-	// Convert to beads format
 	outputDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
+	return importJiraFetchToBeads(client, fetch, outputDir)
+}
+
+// importJiraFetchToBeads downloads attachments, converts to beads JSONL, and prints a summary.
+func importJiraFetchToBeads(client *jira.Client, fetch *jira.DependencyFetch, outputDir string) error {
+	if fetch == nil || fetch.Export == nil {
+		return fmt.Errorf("no issues fetched")
+	}
+
+	fmt.Printf("\n✓ Fetched %d issue(s)\n\n", len(fetch.Export.Issues))
+
+	manifests, err := client.DownloadAttachments(outputDir, fetch.AttachmentsByKey)
+	if err != nil {
+		return fmt.Errorf("failed to download attachments: %w", err)
+	}
+	if len(manifests) > 0 {
+		fileCount := 0
+		for _, m := range manifests {
+			fileCount += len(m.Filenames)
+		}
+		fmt.Printf("✓ Downloaded %d attachment file(s) under .beads/%s/\n\n", fileCount, jira.AttachmentsSubdir)
+	}
+
 	fmt.Println("Converting to beads format...")
 	protoConverter := converter.NewProtoConverter()
-	beadsExport, err := protoConverter.Convert(jiraExport)
+	beadsExport, err := protoConverter.Convert(fetch.Export, manifests)
 	if err != nil {
 		return fmt.Errorf("failed to convert: %w", err)
 	}
 
-	// Render to JSONL
 	jsonlRenderer := beads.NewJSONLRenderer(outputDir)
 	if err := jsonlRenderer.RenderExport(beadsExport); err != nil {
 		return fmt.Errorf("failed to render: %w", err)
@@ -194,6 +213,9 @@ func runQuickstart(urlOrKey string) error {
 		fmt.Printf("  %d epic(s) written to %s/.beads/epics.jsonl\n", len(beadsExport.Epics), outputDir)
 	}
 	fmt.Printf("  %d issue(s) written to %s/.beads/issues.jsonl\n", len(beadsExport.Issues), outputDir)
+	if len(manifests) > 0 {
+		fmt.Printf("  Jira attachments under %s/.beads/%s/<JIRA-KEY>/ (see metadata.jiraAttachmentsDir on each issue)\n", outputDir, jira.AttachmentsSubdir)
+	}
 
 	return nil
 }
@@ -371,39 +393,17 @@ func runFetchByLabel(label string) error {
 	client := jira.NewClient(cfg.Jira.BaseURL, cfg.Jira.Username, cfg.Jira.APIToken, cfg.Jira.AuthMethod)
 
 	// Fetch issues by label
-	jiraExport, err := client.FetchIssuesByLabel(label)
+	fetch, err := client.FetchIssuesByLabel(label)
 	if err != nil {
 		return fmt.Errorf("failed to fetch issues by label: %w", err)
 	}
 
-	fmt.Printf("\n✓ Fetched %d issue(s) total (including dependencies)\n\n", len(jiraExport.Issues))
-
-	// Convert to beads format
 	outputDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	fmt.Println("Converting to beads format...")
-	protoConverter := converter.NewProtoConverter()
-	beadsExport, err := protoConverter.Convert(jiraExport)
-	if err != nil {
-		return fmt.Errorf("failed to convert: %w", err)
-	}
-
-	// Render to JSONL
-	jsonlRenderer := beads.NewJSONLRenderer(outputDir)
-	if err := jsonlRenderer.RenderExport(beadsExport); err != nil {
-		return fmt.Errorf("failed to render: %w", err)
-	}
-
-	fmt.Println("\n✓ Conversion complete!")
-	if len(beadsExport.Epics) > 0 {
-		fmt.Printf("  %d epic(s) written to %s/.beads/epics.jsonl\n", len(beadsExport.Epics), outputDir)
-	}
-	fmt.Printf("  %d issue(s) written to %s/.beads/issues.jsonl\n", len(beadsExport.Issues), outputDir)
-
-	return nil
+	return importJiraFetchToBeads(client, fetch, outputDir)
 }
 
 func runFetchByJQL(jqlQuery string) error {
@@ -436,39 +436,17 @@ func runFetchByJQL(jqlQuery string) error {
 	client := jira.NewClient(cfg.Jira.BaseURL, cfg.Jira.Username, cfg.Jira.APIToken, cfg.Jira.AuthMethod)
 
 	// Fetch issues by JQL
-	jiraExport, err := client.FetchIssuesByJQL(jqlQuery)
+	fetch, err := client.FetchIssuesByJQL(jqlQuery)
 	if err != nil {
 		return fmt.Errorf("failed to fetch issues by JQL: %w", err)
 	}
 
-	fmt.Printf("\n✓ Fetched %d issue(s) total (including dependencies)\n\n", len(jiraExport.Issues))
-
-	// Convert to beads format
 	outputDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	fmt.Println("Converting to beads format...")
-	protoConverter := converter.NewProtoConverter()
-	beadsExport, err := protoConverter.Convert(jiraExport)
-	if err != nil {
-		return fmt.Errorf("failed to convert: %w", err)
-	}
-
-	// Render to JSONL
-	jsonlRenderer := beads.NewJSONLRenderer(outputDir)
-	if err := jsonlRenderer.RenderExport(beadsExport); err != nil {
-		return fmt.Errorf("failed to render: %w", err)
-	}
-
-	fmt.Println("\n✓ Conversion complete!")
-	if len(beadsExport.Epics) > 0 {
-		fmt.Printf("  %d epic(s) written to %s/.beads/epics.jsonl\n", len(beadsExport.Epics), outputDir)
-	}
-	fmt.Printf("  %d issue(s) written to %s/.beads/issues.jsonl\n", len(beadsExport.Issues), outputDir)
-
-	return nil
+	return importJiraFetchToBeads(client, fetch, outputDir)
 }
 
 func runAnnotate(issueID, repository string) error {

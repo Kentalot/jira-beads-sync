@@ -67,6 +67,7 @@ type FetchedIssue struct {
 	// DescriptionPresentButUnparsed is true when Jira returned a description we cannot
 	// represent as plain text (e.g. ADF), so overwriting description from beads is unsafe.
 	DescriptionPresentButUnparsed bool
+	Attachments                   []Attachment
 }
 
 // FetchIssueWithHints is like FetchIssue but includes DescriptionPresentButUnparsed when
@@ -118,6 +119,7 @@ func (c *Client) FetchIssueWithHints(issueKey string) (*FetchedIssue, error) {
 	return &FetchedIssue{
 		Issue:                         issue,
 		DescriptionPresentButUnparsed: DescriptionPresentButUnparsed(jsonIssue.Fields.Description),
+		Attachments:                   attachmentsFromJSON(jsonIssue.Fields.Attachments),
 	}, nil
 }
 
@@ -174,19 +176,28 @@ func (c *Client) GetCurrentUser() (*UserInfo, error) {
 }
 
 // FetchIssueWithDependencies fetches an issue and all its dependencies recursively
-func (c *Client) FetchIssueWithDependencies(issueKey string) (*pb.Export, error) {
+func (c *Client) FetchIssueWithDependencies(issueKey string) (*DependencyFetch, error) {
 	visited := make(map[string]bool)
 	issues := make([]*pb.Issue, 0)
+	attachmentsByKey := make(map[string][]Attachment)
 
-	if err := c.fetchRecursive(issueKey, visited, &issues); err != nil {
+	if err := c.fetchRecursive(issueKey, visited, &issues, attachmentsByKey); err != nil {
 		return nil, err
 	}
 
-	return &pb.Export{Issues: issues}, nil
+	return &DependencyFetch{
+		Export:           &pb.Export{Issues: issues},
+		AttachmentsByKey: attachmentsByKey,
+	}, nil
 }
 
 // fetchRecursive recursively fetches an issue and all its related issues
-func (c *Client) fetchRecursive(issueKey string, visited map[string]bool, issues *[]*pb.Issue) error {
+func (c *Client) fetchRecursive(
+	issueKey string,
+	visited map[string]bool,
+	issues *[]*pb.Issue,
+	attachmentsByKey map[string][]Attachment,
+) error {
 	if visited[issueKey] {
 		return nil
 	}
@@ -194,16 +205,20 @@ func (c *Client) fetchRecursive(issueKey string, visited map[string]bool, issues
 	fmt.Printf("Fetching %s...\n", issueKey)
 	visited[issueKey] = true
 
-	issue, err := c.FetchIssue(issueKey)
+	fetched, err := c.FetchIssueWithHints(issueKey)
 	if err != nil {
 		return fmt.Errorf("failed to fetch %s: %w", issueKey, err)
 	}
 
-	*issues = append(*issues, issue)
+	*issues = append(*issues, fetched.Issue)
+	if len(fetched.Attachments) > 0 {
+		attachmentsByKey[issueKey] = fetched.Attachments
+	}
+	issue := fetched.Issue
 
 	// Fetch subtasks
 	for _, subtask := range issue.Fields.Subtasks {
-		if err := c.fetchRecursive(subtask.Key, visited, issues); err != nil {
+		if err := c.fetchRecursive(subtask.Key, visited, issues, attachmentsByKey); err != nil {
 			return err
 		}
 	}
@@ -211,12 +226,12 @@ func (c *Client) fetchRecursive(issueKey string, visited map[string]bool, issues
 	// Fetch linked issues (dependencies)
 	for _, link := range issue.Fields.IssueLinks {
 		if link.InwardIssue != nil {
-			if err := c.fetchRecursive(link.InwardIssue.Key, visited, issues); err != nil {
+			if err := c.fetchRecursive(link.InwardIssue.Key, visited, issues, attachmentsByKey); err != nil {
 				return err
 			}
 		}
 		if link.OutwardIssue != nil {
-			if err := c.fetchRecursive(link.OutwardIssue.Key, visited, issues); err != nil {
+			if err := c.fetchRecursive(link.OutwardIssue.Key, visited, issues, attachmentsByKey); err != nil {
 				return err
 			}
 		}
@@ -224,7 +239,7 @@ func (c *Client) fetchRecursive(issueKey string, visited map[string]bool, issues
 
 	// Fetch parent if it exists and isn't an epic
 	if issue.Fields.Parent != nil && issue.Fields.Parent.Fields.IssueType.Name != "Epic" {
-		if err := c.fetchRecursive(issue.Fields.Parent.Key, visited, issues); err != nil {
+		if err := c.fetchRecursive(issue.Fields.Parent.Key, visited, issues, attachmentsByKey); err != nil {
 			return err
 		}
 	}
@@ -357,7 +372,7 @@ func (c *Client) SearchIssues(jql string) ([]string, error) {
 }
 
 // FetchIssuesByLabel fetches all issues with a given label and their dependencies
-func (c *Client) FetchIssuesByLabel(label string) (*pb.Export, error) {
+func (c *Client) FetchIssuesByLabel(label string) (*DependencyFetch, error) {
 	fmt.Printf("Searching for issues with label: %s\n", label)
 
 	issueKeys, err := c.SearchIssuesByLabel(label)
@@ -375,18 +390,22 @@ func (c *Client) FetchIssuesByLabel(label string) (*pb.Export, error) {
 	// Fetch all issues and their dependencies
 	visited := make(map[string]bool)
 	issues := make([]*pb.Issue, 0)
+	attachmentsByKey := make(map[string][]Attachment)
 
 	for _, key := range issueKeys {
-		if err := c.fetchRecursive(key, visited, &issues); err != nil {
+		if err := c.fetchRecursive(key, visited, &issues, attachmentsByKey); err != nil {
 			return nil, err
 		}
 	}
 
-	return &pb.Export{Issues: issues}, nil
+	return &DependencyFetch{
+		Export:           &pb.Export{Issues: issues},
+		AttachmentsByKey: attachmentsByKey,
+	}, nil
 }
 
 // FetchIssuesByJQL fetches all issues matching a JQL query and their dependencies
-func (c *Client) FetchIssuesByJQL(jql string) (*pb.Export, error) {
+func (c *Client) FetchIssuesByJQL(jql string) (*DependencyFetch, error) {
 	fmt.Printf("Searching with JQL: %s\n", jql)
 
 	issueKeys, err := c.SearchIssues(jql)
@@ -404,12 +423,16 @@ func (c *Client) FetchIssuesByJQL(jql string) (*pb.Export, error) {
 	// Fetch all issues and their dependencies
 	visited := make(map[string]bool)
 	issues := make([]*pb.Issue, 0)
+	attachmentsByKey := make(map[string][]Attachment)
 
 	for _, key := range issueKeys {
-		if err := c.fetchRecursive(key, visited, &issues); err != nil {
+		if err := c.fetchRecursive(key, visited, &issues, attachmentsByKey); err != nil {
 			return nil, err
 		}
 	}
 
-	return &pb.Export{Issues: issues}, nil
+	return &DependencyFetch{
+		Export:           &pb.Export{Issues: issues},
+		AttachmentsByKey: attachmentsByKey,
+	}, nil
 }

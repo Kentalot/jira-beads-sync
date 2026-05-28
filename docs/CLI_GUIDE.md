@@ -76,8 +76,9 @@ jira-beads-sync quickstart <jira-url-or-key>
    - Parent issues (excluding epics, which become beads epics)
    - Transitive dependencies
 3. Prevents duplicates using visited tracking
-4. Converts all issues to beads format
-5. Creates YAML files in `.beads/issues/` directory
+4. Downloads Jira attachments for each fetched issue to `.beads/jira-attachments/<JIRA-KEY>/` (local-only; add `jira-attachments/` to `.beads/.gitignore` in your repo)
+5. Converts all issues to beads format (metadata includes `jiraAttachmentsDir` and `jiraAttachments` when files were downloaded)
+6. Writes `.beads/issues.jsonl` (and epics when applicable)
 
 **Examples:**
 

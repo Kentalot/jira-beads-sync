@@ -319,9 +319,10 @@ type jsonFields struct {
 	Updated     time.Time       `json:"updated"`
 	Labels      []string        `json:"labels"`
 	IssueLinks  []jsonIssueLink `json:"issuelinks"`
-	Parent      *jsonParent     `json:"parent,omitempty"`
-	Epic        *jsonEpic       `json:"epic,omitempty"`
-	Subtasks    []jsonSubtask   `json:"subtasks"`
+	Parent      *jsonParent       `json:"parent,omitempty"`
+	Epic        *jsonEpic         `json:"epic,omitempty"`
+	Subtasks    []jsonSubtask     `json:"subtasks"`
+	Attachments []jsonAttachment  `json:"attachment"`
 }
 
 type jsonIssueType struct {

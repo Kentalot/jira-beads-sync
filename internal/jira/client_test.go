@@ -377,18 +377,18 @@ func TestFetchIssueWithDependencies(t *testing.T) {
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
 	// Fetch issue with dependencies
-	export, err := client.FetchIssueWithDependencies("PROJ-123")
+	fetch, err := client.FetchIssueWithDependencies("PROJ-123")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if export == nil {
+	if fetch == nil || fetch.Export == nil {
 		t.Fatal("Expected export to be returned, got nil")
 	}
 
 	// Should have fetched 3 issues: main, subtask, linked
-	if len(export.Issues) != 3 {
-		t.Errorf("Expected 3 issues, got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 3 {
+		t.Errorf("Expected 3 issues, got %d", len(fetch.Export.Issues))
 	}
 
 	// Verify all expected issues were fetched
@@ -401,7 +401,7 @@ func TestFetchIssueWithDependencies(t *testing.T) {
 
 	// Verify issues are in the export
 	issueKeys := make(map[string]bool)
-	for _, issue := range export.Issues {
+	for _, issue := range fetch.Export.Issues {
 		issueKeys[issue.Key] = true
 	}
 
@@ -497,14 +497,14 @@ func TestFetchIssueWithDependenciesCircular(t *testing.T) {
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
 	// Should handle circular dependency without infinite loop
-	export, err := client.FetchIssueWithDependencies("PROJ-1")
+	fetch, err := client.FetchIssueWithDependencies("PROJ-1")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
 	// Should have exactly 2 issues (not infinite)
-	if len(export.Issues) != 2 {
-		t.Errorf("Expected 2 issues (no duplicates), got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 2 {
+		t.Errorf("Expected 2 issues (no duplicates), got %d", len(fetch.Export.Issues))
 	}
 }
 
@@ -677,14 +677,14 @@ func TestFetchRecursiveSkipsEpicParents(t *testing.T) {
 
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
-	export, err := client.FetchIssueWithDependencies("PROJ-123")
+	fetch, err := client.FetchIssueWithDependencies("PROJ-123")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
 	// Should only have PROJ-123, not EPIC-100
-	if len(export.Issues) != 1 {
-		t.Errorf("Expected 1 issue (epic parent excluded), got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 1 {
+		t.Errorf("Expected 1 issue (epic parent excluded), got %d", len(fetch.Export.Issues))
 	}
 
 	if fetchedIssues["EPIC-100"] {
@@ -766,14 +766,14 @@ func TestFetchRecursiveFetchesNonEpicParents(t *testing.T) {
 
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
-	export, err := client.FetchIssueWithDependencies("PROJ-124")
+	fetch, err := client.FetchIssueWithDependencies("PROJ-124")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
 	// Should have both PROJ-124 and its parent PROJ-123
-	if len(export.Issues) != 2 {
-		t.Errorf("Expected 2 issues (subtask + parent), got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 2 {
+		t.Errorf("Expected 2 issues (subtask + parent), got %d", len(fetch.Export.Issues))
 	}
 
 	if !fetchedIssues["PROJ-123"] {
@@ -863,14 +863,14 @@ func TestFetchIssueWithBothInwardAndOutwardLinks(t *testing.T) {
 
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
-	export, err := client.FetchIssueWithDependencies("PROJ-100")
+	fetch, err := client.FetchIssueWithDependencies("PROJ-100")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
 	// Should have all 3 issues
-	if len(export.Issues) != 3 {
-		t.Errorf("Expected 3 issues, got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 3 {
+		t.Errorf("Expected 3 issues, got %d", len(fetch.Export.Issues))
 	}
 
 	// Verify both inward and outward linked issues were fetched
@@ -1163,17 +1163,17 @@ func TestFetchIssuesByLabel(t *testing.T) {
 
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
-	export, err := client.FetchIssuesByLabel("sprint-23")
+	fetch, err := client.FetchIssuesByLabel("sprint-23")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if export == nil {
+	if fetch == nil || fetch.Export == nil {
 		t.Fatal("Expected export to be returned, got nil")
 	}
 
-	if len(export.Issues) != 2 {
-		t.Errorf("Expected 2 issues, got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 2 {
+		t.Errorf("Expected 2 issues, got %d", len(fetch.Export.Issues))
 	}
 
 	// Verify both issues were fetched
@@ -1250,14 +1250,14 @@ func TestFetchIssuesByLabelWithDependencies(t *testing.T) {
 
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
-	export, err := client.FetchIssuesByLabel("sprint-23")
+	fetch, err := client.FetchIssuesByLabel("sprint-23")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
 	// Should have fetched both the labeled issue and its subtask
-	if len(export.Issues) != 2 {
-		t.Errorf("Expected 2 issues (main + subtask), got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 2 {
+		t.Errorf("Expected 2 issues (main + subtask), got %d", len(fetch.Export.Issues))
 	}
 
 	// Verify both were fetched
@@ -1502,17 +1502,17 @@ func TestFetchIssuesByJQL(t *testing.T) {
 
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
-	export, err := client.FetchIssuesByJQL("project = PROJ AND status = Open")
+	fetch, err := client.FetchIssuesByJQL("project = PROJ AND status = Open")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if export == nil {
+	if fetch == nil || fetch.Export == nil {
 		t.Fatal("Expected export to be returned, got nil")
 	}
 
-	if len(export.Issues) != 3 {
-		t.Errorf("Expected 3 issues, got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 3 {
+		t.Errorf("Expected 3 issues, got %d", len(fetch.Export.Issues))
 	}
 
 	// Verify all issues were fetched
@@ -1601,14 +1601,14 @@ func TestFetchIssuesByJQLWithDependencies(t *testing.T) {
 
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
-	export, err := client.FetchIssuesByJQL("assignee = currentUser()")
+	fetch, err := client.FetchIssuesByJQL("assignee = currentUser()")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
 	// Should have fetched the main issue, subtask, and linked issue
-	if len(export.Issues) != 3 {
-		t.Errorf("Expected 3 issues (main + subtask + linked), got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 3 {
+		t.Errorf("Expected 3 issues (main + subtask + linked), got %d", len(fetch.Export.Issues))
 	}
 
 	// Verify all were fetched
@@ -1686,13 +1686,13 @@ func TestFetchIssuesByJQLWithComplexQuery(t *testing.T) {
 
 	// Test with complex JQL query
 	jql := `project = MYPROJ AND assignee = currentUser() AND status IN ("READY TO START", "In Progress")`
-	export, err := client.FetchIssuesByJQL(jql)
+	fetch, err := client.FetchIssuesByJQL(jql)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if len(export.Issues) != 2 {
-		t.Errorf("Expected 2 issues, got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 2 {
+		t.Errorf("Expected 2 issues, got %d", len(fetch.Export.Issues))
 	}
 }
 
@@ -1786,13 +1786,13 @@ func TestFetchIssuesByJQLWithSpecialCharacters(t *testing.T) {
 
 	// Test with special characters that need URL encoding
 	jql := `summary ~ "test \"quoted\" value" AND labels = 'sprint-23'`
-	export, err := client.FetchIssuesByJQL(jql)
+	fetch, err := client.FetchIssuesByJQL(jql)
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if len(export.Issues) != 1 {
-		t.Errorf("Expected 1 issue, got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 1 {
+		t.Errorf("Expected 1 issue, got %d", len(fetch.Export.Issues))
 	}
 
 	// Verify the JQL was passed correctly (should be URL decoded on server side)
@@ -1863,13 +1863,13 @@ func TestFetchIssuesByJQLPaginationWarning(t *testing.T) {
 
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
-	export, err := client.FetchIssuesByJQL("project = PROJ")
+	fetch, err := client.FetchIssuesByJQL("project = PROJ")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	if len(export.Issues) != 2 {
-		t.Errorf("Expected 2 issues, got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 2 {
+		t.Errorf("Expected 2 issues, got %d", len(fetch.Export.Issues))
 	}
 }
 
@@ -1972,14 +1972,14 @@ func TestFetchIssuesByJQLWithCircularDependencies(t *testing.T) {
 
 	client := NewClient(server.URL, "user@example.com", "token123", "basic")
 
-	export, err := client.FetchIssuesByJQL("project = PROJ")
+	fetch, err := client.FetchIssuesByJQL("project = PROJ")
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
 	// Should handle circular dependencies without infinite loop
-	if len(export.Issues) != 2 {
-		t.Errorf("Expected 2 issues, got %d", len(export.Issues))
+	if len(fetch.Export.Issues) != 2 {
+		t.Errorf("Expected 2 issues, got %d", len(fetch.Export.Issues))
 	}
 
 	// Each issue should only be fetched once
