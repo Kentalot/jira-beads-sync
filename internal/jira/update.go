@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 // Transition is a workflow transition from Jira REST API v2.
@@ -208,55 +207,3 @@ func (c *Client) ListEditablePriorities(issueKey string) ([]PriorityOption, erro
 	return out, nil
 }
 
-// SearchUserAccountID finds an accountId for assignee updates using /rest/api/3/user/search.
-func (c *Client) SearchUserAccountID(query string) (string, error) {
-	q := strings.TrimSpace(query)
-	if q == "" {
-		return "", fmt.Errorf("user search query is empty")
-	}
-	apiURL := fmt.Sprintf("%s/rest/api/3/user/search?query=%s&maxResults=10",
-		c.baseURL, url.QueryEscape(q))
-
-	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-	c.setAuthHeader(req)
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("user search: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("read user search: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("user search: status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var users []struct {
-		AccountID    string `json:"accountId"`
-		DisplayName  string `json:"displayName"`
-		EmailAddress string `json:"emailAddress"`
-	}
-	if err := json.Unmarshal(body, &users); err != nil {
-		return "", fmt.Errorf("parse user search: %w", err)
-	}
-	if len(users) == 0 {
-		return "", fmt.Errorf("no Jira user found for query %q", query)
-	}
-
-	lower := strings.ToLower(q)
-	if strings.Contains(lower, "@") {
-		for _, u := range users {
-			if strings.EqualFold(strings.TrimSpace(u.EmailAddress), q) {
-				return u.AccountID, nil
-			}
-		}
-	}
-	return users[0].AccountID, nil
-}

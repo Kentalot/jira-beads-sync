@@ -344,6 +344,16 @@ func TestRunFetchByLabelWithMockConfig(t *testing.T) {
 	}
 }
 
+func TestParseSyncArgs(t *testing.T) {
+	keys := parseSyncArgs([]string{"PROJ-123", "DRAGEN-456", "--git-commit", "deadbeef"})
+	if len(keys) != 2 || keys[0] != "PROJ-123" || keys[1] != "DRAGEN-456" {
+		t.Fatalf("parseSyncArgs: %#v", keys)
+	}
+	if len(parseSyncArgs(nil)) != 0 {
+		t.Fatal("expected no keys from empty args")
+	}
+}
+
 func TestRunQuickstartWithMockConfig(t *testing.T) {
 	// Create a temporary config file
 	tmpDir := t.TempDir()

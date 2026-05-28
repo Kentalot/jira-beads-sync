@@ -217,6 +217,14 @@ func runSync(rawArgs []string) error {
 	}
 
 	issueKeys := parseSyncArgs(rawArgs)
+	if len(issueKeys) == 0 {
+		return fmt.Errorf("at least one Jira issue key is required (e.g. jira-beads-sync sync PROJ-123)")
+	}
+	for _, key := range issueKeys {
+		if err := jira.ValidateIssueKey(key); err != nil {
+			return fmt.Errorf("invalid issue key %q: %w", key, err)
+		}
+	}
 
 	issuesPath := beads.IssuesJSONLPath(outputDir)
 
@@ -491,7 +499,7 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println("  jira-beads-sync quickstart <jira-url>         Fetch issue from Jira and convert to beads")
-	fmt.Println("  jira-beads-sync sync [issue-keys...]   Push beads changes to Jira (beads comments with #jira → Jira comments)")
+	fmt.Println("  jira-beads-sync sync <issue-keys...>   Push beads changes to Jira (one or more keys required)")
 	fmt.Println("  jira-beads-sync fetch-by-label <label>        Fetch all issues with label from Jira")
 	fmt.Println("  jira-beads-sync fetch-jql <jql-query>         Fetch issues matching JQL query from Jira")
 	fmt.Println("  jira-beads-sync annotate <issue-id> <repo>    Annotate issue with repository info")

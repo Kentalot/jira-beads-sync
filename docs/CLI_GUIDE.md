@@ -116,11 +116,11 @@ Sync beads state changes back to Jira via the API.
 
 **Usage:**
 ```bash
-jira-beads-sync sync [issue-keys...]
+jira-beads-sync sync <issue-keys...>
 ```
 
 **Arguments:**
-- `[issue-keys...]`: Optional list of specific issue keys to sync (e.g., `PROJ-123 PROJ-456`). When omitted, sync runs for **all** mapped issues in `.beads/issues.jsonl`.
+- `<issue-keys...>`: **Required.** One or more Jira keys to sync (e.g., `PROJ-123` or `PROJ-123 PROJ-456`). Only issues in `.beads/issues.jsonl` whose `metadata.jiraKey` (or `external_ref` `jira-KEY`) matches a listed key are pushed. This prevents stale sibling issues imported via `quickstart` from being synced accidentally.
 
 **What it does:**
 1. Loads `.beads/issues.jsonl` from the current directory.
@@ -145,13 +145,8 @@ jira-beads-sync sync [issue-keys...]
 
 **Examples:**
 
-Sync all mapped issues:
 ```bash
-jira-beads-sync sync
-```
-
-Sync specific issues only:
-```bash
+jira-beads-sync sync PROJ-123
 jira-beads-sync sync PROJ-123 PROJ-456
 ```
 
@@ -174,7 +169,7 @@ jira-beads-sync sync PROJ-123 PROJ-456
 - Sync applies to **`.beads/issues.jsonl` only** (issues imported via `quickstart` / `fetch-by-label` / `fetch-jql`). Epics in `.beads/epics.jsonl` are not pushed back to Jira yet.
 - Each issue must map to Jira using **`metadata.jiraKey`** (set by this tool on import) **or** **`external_ref`** in the form **`jira-PROJ-123`** (some native beads databases).
 - Status changes use Jira **workflow transitions**. The tool picks a transition whose destination status maps to your beads status (`open`, `in_progress`, `blocked`, `closed`). If no such transition exists from the issue’s current state, sync reports an error for that issue.
-- Assignee updates resolve the beads assignee string via **`GET /rest/api/3/user/search`** (use the user’s email when possible for an exact match).
+- Assignee updates resolve the beads assignee via **`GET /rest/api/3/user/search`** on Jira Cloud (`accountId`), with fallback to **`GET /rest/api/2/user/search`** and **`/user/assignable/search`** on Jira Server/Data Center (`name`). Prefer the user’s **email** in beads when possible.
 
 ### convert
 
@@ -372,11 +367,8 @@ bd update proj-123 --status in_progress
 bd update proj-124 --assignee alice
 bd close proj-125
 
-# 3. Sync changes back to Jira
-jira-beads-sync sync
-
-# Or sync specific issues
-jira-beads-sync sync PROJ-123 PROJ-124
+# 3. Sync changes back to Jira (list every key you changed)
+jira-beads-sync sync PROJ-123 PROJ-124 PROJ-125
 ```
 
 ### Scripting and Automation

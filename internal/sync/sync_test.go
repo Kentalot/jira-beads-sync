@@ -126,7 +126,7 @@ func TestRunADFSkipsDescriptionOnPut(t *testing.T) {
 	_ = f.Close()
 
 	client := jira.NewClient(srv.URL, "u", "t", "basic")
-	if err := Run(client, issuesPath, nil, RunOptions{DescPolicy: "replace"}); err != nil {
+	if err := Run(client, issuesPath, []string{"PROJ-1"}, RunOptions{DescPolicy: "replace"}); err != nil {
 		t.Fatal(err)
 	}
 	if len(lastPut) == 0 {

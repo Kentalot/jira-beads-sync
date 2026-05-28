@@ -174,7 +174,7 @@ Users will:
 2. Fetch and sync issues: `jira-beads-sync quickstart PROJ-123`
 3. The tool will recursively fetch all dependencies and sync to beads format
 4. Validate that hierarchy and dependencies are correct
-5. Work in beads, then sync changes back to Jira: `jira-beads-sync sync`
+5. Work in beads, then sync changes back to Jira: `jira-beads-sync sync PROJ-123` (one or more keys required)
 
 ### Fetch by Label
 Users can fetch all issues with a specific label:
@@ -201,7 +201,7 @@ Note: Enclose the entire JQL query in single quotes to prevent shell interpretat
 Users will:
 1. Import issues from Jira using quickstart mode
 2. Make changes in beads (update status, assignee, etc.)
-3. Run sync to push changes back to Jira: `jira-beads-sync sync`
+3. Run sync to push changes back to Jira: `jira-beads-sync sync PROJ-123` (list each key you changed)
 4. The tool will detect changes and update Jira via API
 5. Maintain consistency between beads and Jira
 

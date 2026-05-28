@@ -42,8 +42,8 @@ bd list
 bd show proj-123
 bd update proj-123 --status in_progress
 
-# Sync changes back to Jira
-jira-beads-sync sync
+# Sync changes back to Jira (list each key you changed)
+jira-beads-sync sync PROJ-123
 ```
 
 Or use natural language with Claude Code:
@@ -131,7 +131,7 @@ bd update proj-123 --status in_progress
 ### 4. Sync Back to Jira
 
 ```bash
-jira-beads-sync sync
+jira-beads-sync sync PROJ-123
 ```
 
 **📖 Detailed Usage:** See [CLI Guide](docs/CLI_GUIDE.md) for all commands and options.
@@ -180,7 +180,7 @@ Import a Jira issue:   jira-beads-sync quickstart <JIRA-KEY>
 Fetch by label:        jira-beads-sync fetch-by-label <label>
 Fetch by JQL:          jira-beads-sync fetch-jql '<jql>'
 List issues:           bd list
-Sync back to Jira:     jira-beads-sync sync
+Sync back to Jira:     jira-beads-sync sync <JIRA-KEY> [<JIRA-KEY>...]
 ```
 
 ## How It Works

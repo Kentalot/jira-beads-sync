@@ -32,22 +32,23 @@ func Run(client *jira.Client, issuesPath string, filterKeys []string, opts RunOp
 
 // RunWithLines pushes beads issue changes to Jira for issues in lines (from .beads/issues.jsonl)
 // that carry metadata.jiraKey or external_ref in the form "jira-KEY".
-// filterKeys, if non-empty, limits sync to those Jira keys (case-insensitive, e.g. PROJ-123).
+// filterKeys must list at least one Jira key (case-insensitive, e.g. PROJ-123).
 // After beads comments are posted to Jira, issues.jsonl is saved immediately so a disk
 // failure cannot leave unrecorded comment IDs that would duplicate on retry.
 func RunWithLines(client *jira.Client, issuesPath string, lines []beads.IssueJSONLLine, filterKeys []string, opts RunOptions) error {
+	if len(filterKeys) == 0 {
+		return fmt.Errorf("at least one Jira issue key is required (e.g. jira-beads-sync sync PROJ-123)")
+	}
 	filter := normalizeKeySet(filterKeys)
 
 	if len(lines) == 0 {
 		return fmt.Errorf("no issues found in %s", issuesPath)
 	}
 
-	if len(filter) > 0 {
-		inFile := jiraKeysInLines(lines)
-		for k := range filter {
-			if !inFile[k] {
-				fmt.Fprintf(os.Stderr, "warning: %s not found in %s (no metadata.jiraKey or jira-* external_ref on any issue)\n", k, issuesPath)
-			}
+	inFile := jiraKeysInLines(lines)
+	for k := range filter {
+		if !inFile[k] {
+			fmt.Fprintf(os.Stderr, "warning: %s not found in %s (no metadata.jiraKey or jira-* external_ref on any issue)\n", k, issuesPath)
 		}
 	}
 	pc := converter.NewProtoConverter()
@@ -63,10 +64,8 @@ func RunWithLines(client *jira.Client, issuesPath string, lines []beads.IssueJSO
 			continue
 		}
 		jkeyUpper := strings.ToUpper(jkey)
-		if len(filter) > 0 {
-			if _, ok := filter[jkeyUpper]; !ok {
-				continue
-			}
+		if _, ok := filter[jkeyUpper]; !ok {
+			continue
 		}
 
 		if err := validateKey(jkeyUpper); err != nil {
@@ -253,11 +252,11 @@ func syncOne(client *jira.Client, pc *converter.ProtoConverter, local *beads.Bea
 		if localAssignee == "" {
 			fields["assignee"] = nil
 		} else {
-			accountID, err := client.SearchUserAccountID(localAssignee)
+			assigneeField, err := client.ResolveAssignee(jiraKey, localAssignee)
 			if err != nil {
 				return false, false, fmt.Errorf("assignee: %w", err)
 			}
-			fields["assignee"] = map[string]any{"accountId": accountID}
+			fields["assignee"] = assigneeField
 		}
 	}
 
